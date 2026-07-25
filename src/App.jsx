@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback, Component } from "react";
-import { sendAdminWhatsAppAlert } from "./services/whatsapp";
 import {
   HeartPulse, Stethoscope, Syringe, Bandage, Thermometer, Users, Droplet, UtensilsCrossed, Dumbbell, Baby,
   User, UserPlus, UserCheck, LayoutDashboard, Calendar, CalendarClock, CalendarPlus, Clock, MapPin, Star,
@@ -2260,14 +2259,6 @@ function BookingWizardView({ patients, nurses, bookings, onCreatePatient, onCrea
         setStep(3);
 
         onNotify(`✅ تم الحجز بنجاح! تم إنشاء ملف المريض.`);
-        
-        sendAdminWhatsAppAlert({
-          actionType: "حجز زيارة جديدة",
-          personName: wiz.patientName,
-          phone: wiz.phone,
-          service: selectedService.name,
-          actionBy: "المريض نفسه (عبر الموقع)",
-        });
       } else {
         throw new Error("فشل الحجز من الخادم.");
       }
@@ -2487,22 +2478,6 @@ export default function App() {
         body: JSON.stringify({ action, table, id, data: payloadData })
       });
       const data = await response.json();
-      
-      if (data.success) {
-        // Formulate readable action type
-        const actionMap = { create: "إضافة", update: "تعديل", delete: "حذف" };
-        const tableMap = { patients: "مريض", nurses: "ممرض", bookings: "حجز", invoices: "فاتورة" };
-        const actTitle = `${actionMap[action] || action} ${tableMap[table] || table}`;
-        
-        sendAdminWhatsAppAlert({
-          actionType: actTitle,
-          personName: payloadData?.name || payloadData?.patientName || payloadData?.nurseName || payloadData?.id || id,
-          phone: payloadData?.phone || payloadData?.whatsapp,
-          service: payloadData?.service || payloadData?.requestReason || payloadData?.status || "لا يوجد",
-          actionBy: "نظام الإدارة",
-        });
-      }
-      
       return data.success;
     } catch (e) {
       console.error("Mutation failed", e);
