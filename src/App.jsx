@@ -2177,10 +2177,7 @@ export default function App() {
     return ["home", "booking", "join", "admin"].includes(hash) ? hash : "home";
   };
 
-  const [tab, setTab] = useState(() => {
-    const h = getTabFromHash();
-    return h === "admin" ? "home" : h;
-  });
+  const [tab, setTab] = useState(() => getTabFromHash());
   const [patients, setPatients] = useState(() => buildSeedPatients());
   const [nurses, setNurses] = useState(() => buildSeedNurses());
   const [bookings, setBookings] = useState(() => buildSeedBookings());
@@ -2199,10 +2196,10 @@ export default function App() {
 
   useEffect(() => {
     const handleHashChange = () => {
-      const h = getTabFromHash();
-      setTab(h);
+      setTab(getTabFromHash());
     };
     window.addEventListener("hashchange", handleHashChange);
+    setTab(getTabFromHash());
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
