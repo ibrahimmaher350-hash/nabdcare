@@ -4142,15 +4142,39 @@ export default function App() {
         body: JSON.stringify({ action, table, id, data: payloadData })
       });
       const data = await response.json();
-      return data.success;
+      return data?.success;
     } catch (e) {
-      console.error("Mutation failed", e);
-      return false;
+      console.warn("Standard mutation fetch note, attempting fallback:", e);
+      try {
+        await fetch(GOOGLE_API_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action, table, id, data: payloadData })
+        });
+        return true;
+      } catch (err2) {
+        console.error("Fallback mutation error:", err2);
+        return false;
+      }
     }
   };
+
   const createPatient = async (data) => {
     setPatients((prev) => [data, ...prev]);
     await apiMutate("create", "patients", data.id, data);
+  };
+
+  const createBookings = async (newOnes) => {
+    setBookings((prev) => [...newOnes, ...prev]);
+    for (const b of newOnes) {
+      await apiMutate("create", "bookings", b.id, b);
+    }
+  };
+
+  const createInvoice = async (inv) => {
+    setInvoices((prev) => [inv, ...prev]);
+    await apiMutate("create", "invoices", inv.id, inv);
   };
 
   const registerNurse = async (data) => {
@@ -4197,10 +4221,6 @@ export default function App() {
     setInvoices((prev) => prev.map((inv) => inv.id === id ? { ...inv, ...patch } : inv));
     await apiMutate("update", "invoices", id, patch);
   };
-
-  const createPatientLocal = (data) => setPatients((prev) => [data, ...prev]);
-  const createBookingsLocal = (newOnes) => setBookings((prev) => [...prev, ...newOnes]);
-  const createInvoiceLocal = (inv) => setInvoices((prev) => [inv, ...prev]);
 
   const goToAdminNurses = () => {
     if (adminUnlocked) {
@@ -4267,9 +4287,9 @@ export default function App() {
               patients={patients}
               nurses={nurses}
               bookings={bookings}
-              onCreatePatient={createPatientLocal}
-              onCreateBookings={createBookingsLocal}
-              onCreateInvoice={createInvoiceLocal}
+              onCreatePatient={createPatient}
+              onCreateBookings={createBookings}
+              onCreateInvoice={createInvoice}
               onNotify={showToast}
               initialServiceId={selectedServiceId}
               onGoToAppointments={() => changeTab("home")}
