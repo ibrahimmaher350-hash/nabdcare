@@ -2280,11 +2280,6 @@ function BookingWizardView({ patients, nurses, bookings, onCreatePatient, onCrea
         setStep(3);
 
         onNotify(`✅ تم الحجز بنجاح! تم إنشاء ملف المريض.`);
-        
-        sendWhatsAppNotification(
-          "📅 حجز زيارة تمريضية جديد",
-          `المريض: ${newPatient.name} | الكود: ${patientCode} | الخدمة: ${selectedService.name} | المنطقة: ${wiz.area} | الموعد: ${wiz.date} ${wiz.time} | المبلغ: ${wiz.price || 0} ج.م`
-        );
       } else {
         throw new Error("فشل الحجز من الخادم.");
       }
