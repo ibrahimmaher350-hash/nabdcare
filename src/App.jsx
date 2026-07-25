@@ -1076,14 +1076,6 @@ function NabdBottomNav({ currentTab, onChangeTab, patients, onNotify }) {
 
   const handleTabClick = (key) => {
     triggerHaptic();
-    if (key === "services") {
-      onChangeTab("home");
-      setTimeout(() => {
-        const el = document.getElementById("services-section");
-        if (el) el.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-      return;
-    }
     if (key === "patient") {
       setShowPatientModal(true);
       return;
@@ -1093,8 +1085,8 @@ function NabdBottomNav({ currentTab, onChangeTab, patients, onNotify }) {
 
   return (
     <>
-      <nav className="fixed bottom-3 left-3 right-3 z-40 max-w-md mx-auto" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-        <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] shadow-[0_12px_40px_rgba(4,28,54,0.18)] px-2 py-2 flex items-center justify-between relative transition-all duration-300">
+      <nav className="fixed bottom-2 left-2 right-2 z-40 max-w-lg mx-auto" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] shadow-[0_12px_40px_rgba(4,28,54,0.18)] px-1.5 py-1.5 flex items-center justify-between relative transition-all duration-300">
           
           {/* 1. Home */}
           <button
@@ -1103,10 +1095,10 @@ function NabdBottomNav({ currentTab, onChangeTab, patients, onNotify }) {
               currentTab === "home" ? "text-[#143B67] font-black" : "text-slate-400 hover:text-slate-600 font-medium"
             }`}
           >
-            <div className={`p-1.5 rounded-xl transition-all duration-200 ${currentTab === "home" ? "bg-[#EBF3FA] scale-110 shadow-sm" : ""}`}>
-              <LayoutDashboard size={20} className={currentTab === "home" ? "text-[#143B67]" : "text-slate-400"} />
+            <div className={`p-1 rounded-xl transition-all duration-200 ${currentTab === "home" ? "bg-[#EBF3FA] scale-110 shadow-sm" : ""}`}>
+              <LayoutDashboard size={18} className={currentTab === "home" ? "text-[#143B67]" : "text-slate-400"} />
             </div>
-            <span className="text-[10px] tracking-tight">الرئيسية</span>
+            <span className="text-[9px] tracking-tight">الرئيسية</span>
           </button>
 
           {/* 2. Services */}
@@ -1116,24 +1108,24 @@ function NabdBottomNav({ currentTab, onChangeTab, patients, onNotify }) {
               currentTab === "services" ? "text-[#143B67] font-black" : "text-slate-400 hover:text-slate-600 font-medium"
             }`}
           >
-            <div className="p-1.5 rounded-xl transition-all duration-200">
-              <Stethoscope size={20} className="text-slate-400" />
+            <div className={`p-1 rounded-xl transition-all duration-200 ${currentTab === "services" ? "bg-[#EBF3FA] scale-110 shadow-sm" : ""}`}>
+              <Stethoscope size={18} className={currentTab === "services" ? "text-[#143B67]" : "text-slate-400"} />
             </div>
-            <span className="text-[10px] tracking-tight">الخدمات</span>
+            <span className="text-[9px] tracking-tight">الخدمات</span>
           </button>
 
           {/* 3. Central Hero Action: BOOK NOW */}
-          <div className="relative -top-5 flex flex-col items-center justify-center px-1">
+          <div className="relative -top-4 flex flex-col items-center justify-center px-0.5">
             <button
               onClick={() => handleTabClick("booking")}
-              className={`w-14 h-14 rounded-full bg-gradient-to-tr from-[#D97706] via-[#E39019] to-[#F59E0B] text-[#041C36] flex items-center justify-center shadow-[0_8px_25px_rgba(227,144,25,0.45)] border-4 border-white transition-all duration-300 hover:scale-105 active:scale-90 touch-manipulation ${
+              className={`w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-[#D97706] via-[#E39019] to-[#F59E0B] text-[#041C36] flex items-center justify-center shadow-[0_8px_25px_rgba(227,144,25,0.45)] border-4 border-white transition-all duration-300 hover:scale-105 active:scale-90 touch-manipulation ${
                 currentTab === "booking" ? "ring-4 ring-[#E39019]/40 scale-110" : ""
               }`}
-              title="احجز الآن"
+              title="حجز زيارة"
             >
-              <CalendarPlus size={26} className="text-[#041C36] drop-shadow-sm" />
+              <CalendarPlus size={24} className="text-[#041C36] drop-shadow-sm" />
             </button>
-            <span className="text-[10px] font-black text-[#E39019] mt-0.5 whitespace-nowrap">احجز الآن</span>
+            <span className="text-[9px] font-black text-[#E39019] mt-0.5 whitespace-nowrap">حجز زيارة</span>
           </div>
 
           {/* 4. Join Nurse */}
@@ -1143,21 +1135,36 @@ function NabdBottomNav({ currentTab, onChangeTab, patients, onNotify }) {
               currentTab === "join" ? "text-[#143B67] font-black" : "text-slate-400 hover:text-slate-600 font-medium"
             }`}
           >
-            <div className={`p-1.5 rounded-xl transition-all duration-200 ${currentTab === "join" ? "bg-[#EBF3FA] scale-110 shadow-sm" : ""}`}>
-              <UserCheck size={20} className={currentTab === "join" ? "text-[#143B67]" : "text-slate-400"} />
+            <div className={`p-1 rounded-xl transition-all duration-200 ${currentTab === "join" ? "bg-[#EBF3FA] scale-110 shadow-sm" : ""}`}>
+              <UserCheck size={18} className={currentTab === "join" ? "text-[#143B67]" : "text-slate-400"} />
             </div>
-            <span className="text-[10px] tracking-tight whitespace-nowrap">انضم إلينا</span>
+            <span className="text-[9px] tracking-tight whitespace-nowrap">انضمام ممرض</span>
           </button>
 
-          {/* 5. Patient Profile */}
+          {/* 5. Patient Reviews */}
           <button
-            onClick={() => handleTabClick("patient")}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all duration-200 active:scale-95 touch-manipulation text-slate-400 hover:text-slate-600 font-medium"
+            onClick={() => handleTabClick("reviews")}
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all duration-200 active:scale-95 touch-manipulation ${
+              currentTab === "reviews" ? "text-[#143B67] font-black" : "text-slate-400 hover:text-slate-600 font-medium"
+            }`}
           >
-            <div className="p-1.5 rounded-xl transition-all duration-200">
-              <User size={20} className="text-slate-400" />
+            <div className={`p-1 rounded-xl transition-all duration-200 ${currentTab === "reviews" ? "bg-[#EBF3FA] scale-110 shadow-sm" : ""}`}>
+              <Star size={18} className={currentTab === "reviews" ? "text-[#143B67]" : "text-slate-400"} />
             </div>
-            <span className="text-[10px] tracking-tight whitespace-nowrap">ملفي الطبي</span>
+            <span className="text-[9px] tracking-tight whitespace-nowrap">آراء المرضى</span>
+          </button>
+
+          {/* 6. Admin */}
+          <button
+            onClick={() => handleTabClick("admin")}
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all duration-200 active:scale-95 touch-manipulation ${
+              currentTab === "admin" ? "text-[#143B67] font-black" : "text-slate-400 hover:text-slate-600 font-medium"
+            }`}
+          >
+            <div className={`p-1 rounded-xl transition-all duration-200 ${currentTab === "admin" ? "bg-[#EBF3FA] scale-110 shadow-sm" : ""}`}>
+              <UserCog size={18} className={currentTab === "admin" ? "text-[#143B67]" : "text-slate-400"} />
+            </div>
+            <span className="text-[9px] tracking-tight whitespace-nowrap">الإدارة</span>
           </button>
 
         </div>
@@ -1175,65 +1182,126 @@ function NabdBottomNav({ currentTab, onChangeTab, patients, onNotify }) {
   );
 }
 
-function NabdFooter() {
+function NabdFooter({ onGoBooking }) {
+  const contactButtons = [
+    {
+      label: "واتساب",
+      sublabel: "محادثة فورية 24/7",
+      icon: <MessageSquare size={18} className="text-[#10B981]" />,
+      url: `https://wa.me/20${BRAND.phone}`,
+      bg: "#10B98118",
+      border: "#10B98144",
+      textColor: "#10B981",
+    },
+    {
+      label: "اتصال مباشر",
+      sublabel: BRAND.phone,
+      icon: <PhoneCall size={18} className="text-white" />,
+      url: `tel:${BRAND.phone}`,
+      bg: "#143B67",
+      border: "#143B67",
+      textColor: "#ffffff",
+    },
+    {
+      label: "حجز زيارة",
+      sublabel: "احجز ممرض الآن",
+      icon: <CalendarPlus size={18} className="text-[#041C36]" />,
+      action: () => onGoBooking && onGoBooking(false),
+      bg: "#E39019",
+      border: "#E39019",
+      textColor: "#041C36",
+    },
+    {
+      label: "الصفحة الرسمية",
+      sublabel: "فيسبوك",
+      icon: <Share2 size={18} className="text-[#1877F2]" />,
+      url: "https://www.facebook.com/share/1EKbXc5stY/",
+      bg: "#1877F218",
+      border: "#1877F244",
+      textColor: "#1877F2",
+    },
+    {
+      label: "جروب نبض",
+      sublabel: "مجتمع المتابعين",
+      icon: <Users size={18} className="text-[#1877F2]" />,
+      url: "https://www.facebook.com/share/g/1BYWGH9tDG/",
+      bg: "#1877F218",
+      border: "#1877F244",
+      textColor: "#1877F2",
+    },
+    {
+      label: "الحساب الشخصي",
+      sublabel: "مسؤول المنظومة",
+      icon: <User size={18} className="text-[#143B67]" />,
+      url: "https://www.facebook.com/share/1Hig6n8ADM/",
+      bg: "#143B6718",
+      border: "#143B6744",
+      textColor: "#143B67",
+    },
+  ];
+
   return (
-    <div className="bg-gradient-to-br from-[#041C36] via-[#143B67] to-[#041C36] rounded-3xl p-6 border border-[#143B67] shadow-xl text-white mt-4">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="p-2.5 rounded-2xl bg-[#E39019] text-[#041C36]">
-          <MessageSquare size={22} />
-        </div>
-        <div>
-          <h3 className="font-extrabold text-lg font-['Cairo']">تواصل معنا</h3>
-          <p className="text-xs text-slate-300">نحن هنا 24/7 — تواصل معنا عبر القنوات المفضلة لديك</p>
-        </div>
+    <div className="bg-gradient-to-br from-[#041C36] via-[#143B67] to-[#041C36] rounded-3xl p-4 sm:p-5 border border-[#143B67] shadow-xl text-white mt-4">
+      <div className="text-center mb-3">
+        <h3 className="font-black text-base sm:text-lg font-['Cairo'] text-white">تواصل معنا</h3>
+        <p className="text-xs text-slate-300 mt-0.5 font-bold">اختر وسيلة التواصل المناسبة</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {SOCIAL_LINKS.map((link, idx) => (
-          <a
-            key={idx}
-            href={link.url}
-            target={link.url.startsWith("http") ? "_blank" : "_self"}
-            rel="noreferrer"
-            className="flex items-center gap-3 p-3.5 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-            style={{ background: link.bg, border: `1.5px solid ${link.color}22` }}
-          >
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+        {contactButtons.map((btn, idx) => {
+          const innerContent = (
             <div
-              className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 shadow-sm"
-              style={{ background: `${link.color}18`, border: `1px solid ${link.color}33` }}
+              className="flex items-center gap-2.5 p-2.5 rounded-2xl transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-sm min-h-[50px] w-full"
+              style={{ background: btn.bg, border: `1.5px solid ${btn.border}` }}
             >
-              {link.icon}
+              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 shadow-sm">
+                {btn.icon}
+              </div>
+              <div className="flex-1 min-w-0 text-right">
+                <p className="font-extrabold text-xs truncate leading-tight" style={{ color: btn.textColor }}>{btn.label}</p>
+                <p className="text-[10px] opacity-80 truncate text-slate-200 mt-0.5 font-bold">{btn.sublabel}</p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-extrabold text-sm" style={{ color: link.color }}>{link.label}</p>
-              <p className="text-xs text-slate-500 truncate">{link.sublabel}</p>
-            </div>
-            <ExternalLink size={15} style={{ color: link.color }} className="flex-shrink-0 opacity-60" />
-          </a>
-        ))}
+          );
+
+          if (btn.action) {
+            return (
+              <button key={idx} onClick={btn.action} className="w-full text-right outline-none">
+                {innerContent}
+              </button>
+            );
+          }
+
+          return (
+            <a
+              key={idx}
+              href={btn.url}
+              target={btn.url.startsWith("http") ? "_blank" : "_self"}
+              rel="noreferrer"
+              className="no-underline block"
+            >
+              {innerContent}
+            </a>
+          );
+        })}
       </div>
 
-      <div className="mt-4 text-center border-t border-white/10 pt-4">
-        <p className="text-xs text-slate-400">© 2026 نبض للتمريض المنزلي — دمياط، مصر</p>
-        <p className="text-xs text-slate-500 mt-1">جميع الحقوق محفوظة | إشراف: {BRAND.manager}</p>
+      <div className="mt-3.5 text-center border-t border-white/10 pt-3">
+        <p className="text-[11px] text-slate-400 font-bold">© 2026 نبض للتمريض المنزلي — دمياط، مصر</p>
       </div>
     </div>
   );
 }
 
-/* ============================== HOME HERO VIEW ============================== */
+/* ============================== HOME HERO VIEW (الرئيسية) ============================== */
 
 function HomeHeroView({ onGoBooking, onGoJoin, onNotify, stats }) {
-  const scrollToServices = () => {
-    const el = document.getElementById("services-section");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
-  };
-
   const patientCountStr = (13000 + (stats?.patients || 0)).toString();
   const visitCountStr = (15000 + (stats?.bookings || 0)).toString();
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 my-2" dir="rtl">
+      {/* Hero Banner */}
       <div className="bg-gradient-to-br from-[#041C36] via-[#143B67] to-[#041C36] rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden border border-[#143B67]">
         <div className="absolute top-0 left-0 w-80 h-80 bg-[#E39019] opacity-15 rounded-full blur-3xl -ml-20 -mt-20 pointer-events-none" />
 
@@ -1272,15 +1340,9 @@ function HomeHeroView({ onGoBooking, onGoJoin, onNotify, stats }) {
             <div className="flex flex-wrap gap-3 pt-2">
               <button
                 onClick={() => onGoBooking(false)}
-                className="carehub-btn-orange flex items-center gap-2 text-sm sm:text-base px-6 py-3 shadow-lg"
+                className="carehub-btn-orange flex items-center gap-2 text-sm sm:text-base px-6 py-3 shadow-lg font-extrabold"
               >
-                <CalendarPlus size={18} /> احجز زيارة
-              </button>
-              <button
-                onClick={scrollToServices}
-                className="bg-white/15 hover:bg-white/25 text-white font-extrabold px-5 py-3 rounded-2xl text-sm border border-white/20 flex items-center gap-2 cursor-pointer transition-all min-h-[44px]"
-              >
-                <ChevronDown size={18} /> استكشف الخدمات
+                <CalendarPlus size={18} /> احجز زيارة الآن 🚀
               </button>
             </div>
           </div>
@@ -1296,17 +1358,9 @@ function HomeHeroView({ onGoBooking, onGoJoin, onNotify, stats }) {
                   fetchpriority="high"
                   decoding="async"
                 />
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#041C36] via-[#041C36]/80 to-transparent p-4 text-center">
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#041C36] via-[#041C36]/90 to-transparent p-4 text-center">
                   <p className="font-extrabold text-base text-white font-['Cairo']">أ/ إبراهيم ماهر</p>
                   <p className="text-xs text-[#E39019] font-bold">إشراف طاقم التمريض المنزلي بدمياط</p>
-                  <div className="mt-2 flex items-center justify-center gap-2">
-                    <a
-                      href={`tel:${BRAND.phone}`}
-                      className="bg-[#10B981] hover:bg-emerald-600 text-white font-bold px-3 py-1 rounded-xl text-xs flex items-center gap-1"
-                    >
-                      <PhoneCall size={12} /> {BRAND.phone}
-                    </a>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1314,39 +1368,75 @@ function HomeHeroView({ onGoBooking, onGoJoin, onNotify, stats }) {
         </div>
       </div>
 
+      {/* Statistics Section */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-md">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-          <div className="p-3 rounded-2xl bg-[#EBF3FA] border border-[#143B67]/10 flex flex-col items-center">
+          <div className="p-3.5 rounded-2xl bg-[#EBF3FA] border border-[#143B67]/10 flex flex-col items-center">
             <p className="text-2xl sm:text-3xl font-black text-[#143B67] font-['Cairo']">+{visitCountStr}</p>
             <p className="text-xs font-bold text-slate-600 mt-1">زيارة منزلية ناجحة</p>
           </div>
-          <div className="p-3 rounded-2xl bg-[#EBF3FA] border border-[#143B67]/10 flex flex-col items-center">
+          <div className="p-3.5 rounded-2xl bg-[#EBF3FA] border border-[#143B67]/10 flex flex-col items-center">
             <p className="text-2xl sm:text-3xl font-black text-[#E39019] font-['Cairo']">+{patientCountStr}</p>
             <p className="text-xs font-bold text-slate-600 mt-1">عميل ومريض مخدوم</p>
           </div>
-          <div className="p-3 rounded-2xl bg-[#EBF3FA] border border-[#143B67]/10 flex flex-col items-center">
+          <div className="p-3.5 rounded-2xl bg-[#EBF3FA] border border-[#143B67]/10 flex flex-col items-center">
             <p className="text-2xl sm:text-3xl font-black text-[#10B981] font-['Cairo']">98%</p>
             <p className="text-xs font-bold text-slate-600 mt-1">نسبة رضا وتوصية</p>
           </div>
-          <div className="p-3 rounded-2xl bg-[#EBF3FA] border border-[#143B67]/10 flex flex-col items-center">
+          <div className="p-3.5 rounded-2xl bg-[#EBF3FA] border border-[#143B67]/10 flex flex-col items-center">
             <p className="text-2xl sm:text-3xl font-black text-red-600 font-['Cairo']">24/7</p>
             <p className="text-xs font-bold text-slate-600 mt-1">دعم وطوارئ متواصلة</p>
           </div>
         </div>
       </div>
 
-      <div id="services-section" className="flex flex-col gap-8">
-        <div className="text-center sm:text-right">
-          <h2 className="font-extrabold text-2xl sm:text-3xl text-[#041C36] font-['Cairo'] relative inline-block">
-            خدمات نبض التمريضية
-            <div className="absolute -bottom-2 right-0 w-1/2 h-1.5 bg-[#E39019] rounded-full opacity-80" />
-          </h2>
-          <p className="text-sm text-slate-500 mt-4 font-bold">خدمات تمريضية منزلية معقمة ومتخصصة على مدار 24 ساعة بمحافظة دمياط</p>
+      {/* Call To Action Banner */}
+      <div className="bg-gradient-to-r from-[#143B67] to-[#041C36] rounded-3xl p-6 sm:p-8 text-white text-center flex flex-col items-center gap-4 border border-[#143B67] shadow-xl">
+        <h3 className="font-extrabold text-xl sm:text-2xl font-['Cairo']">هل تحتاج زيارة تمريضية عاجلة بالمنزل؟ 🩺</h3>
+        <p className="text-xs sm:text-sm text-slate-300 max-w-lg">طاقم تمريض نبض جاهز للتحرك الفوري وإجراء كافة الخدمات التمريضية المعقمة بمنزلك في محافظة دمياط.</p>
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-1">
+          <button onClick={() => onGoBooking(false)} className="carehub-btn-orange font-extrabold text-xs sm:text-sm px-6 py-3 shadow-lg flex items-center gap-2">
+            <CalendarPlus size={18} /> احجز زيارة الآن 🚀
+          </button>
+          <a href={`https://wa.me/20${BRAND.phone}`} target="_blank" rel="noreferrer" className="carehub-btn-wa text-xs sm:text-sm font-bold px-6 py-3">
+            <MessageSquare size={18} /> تواصل عبر الواتساب 💬
+          </a>
         </div>
+      </div>
+    </div>
+  );
+}
 
+/* ============================== SERVICES VIEW (الخدمات) ============================== */
+function ServicesView({ onGoBooking, onNotify }) {
+  return (
+    <div className="flex flex-col gap-6 my-4" dir="rtl">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#041C36] via-[#0d2d55] to-[#143B67] text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-64 h-64 bg-[#E39019] opacity-10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-[#E39019] text-[#041C36] flex items-center justify-center font-black shadow-lg">
+              <Stethoscope size={30} />
+            </div>
+            <div>
+              <h1 className="font-extrabold text-xl sm:text-2xl font-['Cairo'] text-white">خدمات نبض التمريضية 🩺</h1>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1">خدمات تمريضية منزلية معقمة ومتخصصة على مدار 24 ساعة بمحافظة دمياط</p>
+            </div>
+          </div>
+          <button
+            onClick={() => onGoBooking(false)}
+            className="carehub-btn-orange text-xs font-extrabold px-5 py-2.5 shadow-md flex items-center gap-2"
+          >
+            <CalendarPlus size={16} /> احجز الخدمة الآن
+          </button>
+        </div>
+      </div>
+
+      {/* Services List */}
+      <div className="flex flex-col gap-8">
         {CATEGORIZED_SERVICES.map((cat, idx) => (
-          <div key={idx} className="bg-white rounded-[2rem] p-6 sm:p-8 border border-slate-100 shadow-sm flex flex-col gap-6 relative overflow-hidden group/cat">
-            {/* Background accent for category */}
+          <div key={idx} className="bg-white rounded-[2rem] p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col gap-6 relative overflow-hidden group/cat">
             <div className="absolute top-0 right-0 w-full h-1.5 bg-gradient-to-r from-[#143B67] via-[#10B981] to-[#E39019] opacity-70 group-hover/cat:opacity-100 transition-opacity" />
             
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -1356,7 +1446,7 @@ function HomeHeroView({ onGoBooking, onGoJoin, onNotify, stats }) {
                 </div>
                 {cat.category}
               </h3>
-              <QuickShareButton title={cat.category} hashTarget="home" onNotify={onNotify} />
+              <QuickShareButton title={cat.category} hashTarget="services" onNotify={onNotify} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -1365,7 +1455,7 @@ function HomeHeroView({ onGoBooking, onGoJoin, onNotify, stats }) {
                 return (
                   <div
                     key={item.id}
-                    className="p-5 rounded-3xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-[#EBF3FA] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col gap-4 group cursor-default"
+                    className="p-5 rounded-3xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-[#EBF3FA] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between gap-4 group cursor-default"
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#143B67] to-[#041C36] text-white flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
@@ -1389,6 +1479,13 @@ function HomeHeroView({ onGoBooking, onGoJoin, onNotify, stats }) {
                         ))}
                       </div>
                     )}
+
+                    <button
+                      onClick={() => onGoBooking(false, item.id)}
+                      className="carehub-btn-primary text-xs py-2.5 w-full mt-2 font-extrabold rounded-2xl flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <CalendarPlus size={15} /> طلب هذه الخدمة
+                    </button>
                   </div>
                 );
               })}
@@ -1396,47 +1493,64 @@ function HomeHeroView({ onGoBooking, onGoJoin, onNotify, stats }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
 
-      {/* ===== آراء العملاء ===== */}
-      <div className="flex flex-col gap-8 mt-12 mb-8">
-        <div className="text-center">
-          <h2 className="font-extrabold text-2xl sm:text-3xl text-[#041C36] font-['Cairo'] relative inline-block">
-            آراء عملائنا الكرام
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1/2 h-1.5 bg-[#10B981] rounded-full opacity-80" />
-          </h2>
-          <p className="text-sm text-slate-500 mt-4 font-bold">شهادات نعتز بها من عملائنا بعد تقديم الرعاية التمريضية</p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {TESTIMONIALS.map((t, idx) => (
-            <div key={idx} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 flex flex-col gap-5 relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-[#EBF3FA] to-transparent opacity-60 rounded-br-full pointer-events-none group-hover:scale-125 transition-transform duration-700" />
-              
-              <div className="flex items-center justify-between relative z-10">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#143B67] to-[#041C36] text-white flex items-center justify-center font-black text-xl shadow-lg border-2 border-white group-hover:rotate-6 transition-transform">
-                    {t.name[0] || "ع"}
-                  </div>
-                  <div>
-                    <h4 className="font-extrabold text-sm text-[#041C36] font-['Cairo']">{t.name}</h4>
-                    <div className="flex gap-0.5 text-[#F59E0B] mt-1">
-                      {[1, 2, 3, 4, 5].map(i => <Star key={i} size={12} fill="currentColor" strokeWidth={0} />)}
-                    </div>
-                  </div>
-                </div>
-                <MessageSquare className="text-[#EBF3FA] group-hover:text-[#E39019]/10 transition-colors" size={40} strokeWidth={1.5} />
-              </div>
-              
-              <div className="relative z-10 flex-1">
-                <p className="text-sm font-bold text-slate-700 leading-loose italic">
-                  &quot;{t.text}&quot;
-                </p>
-              </div>
+/* ============================== PATIENT REVIEWS VIEW (آراء المرضى) ============================== */
+function PatientReviewsView({ onNotify }) {
+  return (
+    <div className="flex flex-col gap-6 my-4" dir="rtl">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#041C36] via-[#0d2d55] to-[#143B67] text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-64 h-64 bg-[#10B981] opacity-10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-[#10B981] text-white flex items-center justify-center font-black shadow-lg">
+              <Star size={30} fill="currentColor" />
             </div>
-          ))}
+            <div>
+              <h1 className="font-extrabold text-xl sm:text-2xl font-['Cairo'] text-white">آراء وتقييمات عملائنا ⭐</h1>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1">شهادات حقيقية نعتز بها من مرضى وعائلات حظوا برعايتنا التمريضية بدمياط</p>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Reviews Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {TESTIMONIALS.map((t, idx) => (
+          <div key={idx} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col gap-5 relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-[#EBF3FA] to-transparent opacity-60 rounded-br-full pointer-events-none group-hover:scale-125 transition-transform duration-700" />
+            
+            <div className="flex items-center justify-between relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#143B67] to-[#041C36] text-white flex items-center justify-center font-black text-xl shadow-lg border-2 border-white group-hover:rotate-6 transition-transform">
+                  {t.name[0] || "ع"}
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-[#041C36] font-['Cairo']">{t.name}</h4>
+                  <div className="flex gap-0.5 text-[#F59E0B] mt-1">
+                    {[1, 2, 3, 4, 5].map(i => <Star key={i} size={12} fill="currentColor" strokeWidth={0} />)}
+                  </div>
+                </div>
+              </div>
+              <MessageSquare className="text-[#EBF3FA] group-hover:text-[#E39019]/20 transition-colors" size={38} strokeWidth={1.5} />
+            </div>
+            
+            <div className="relative z-10 flex-1">
+              <p className="text-xs sm:text-sm font-bold text-slate-700 leading-relaxed italic">
+                &quot;{t.text}&quot;
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-bold">
+              <span>✔ عميل موثّق بالمنظومة</span>
+              <span>{t.date || "تقييم معتمد"}</span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -3984,7 +4098,7 @@ const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbyOwjexAqUzIoiy1
 export default function App() {
   const getTabFromHash = () => {
     const hash = window.location.hash.replace("#", "").trim();
-    return ["home", "booking", "join", "admin"].includes(hash) ? hash : "home";
+    return ["home", "services", "booking", "join", "reviews", "admin"].includes(hash) ? hash : "home";
   };
 
   const [tab, setTab] = useState(() => getTabFromHash());
@@ -4178,6 +4292,8 @@ export default function App() {
 
         <main className="max-w-6xl mx-auto px-4 py-5">
           {tab === "home" && <HomeHeroView onGoBooking={handleGoBooking} onGoJoin={() => changeTab("join")} onNotify={showToast} />}
+          {tab === "services" && <ServicesView onGoBooking={handleGoBooking} onNotify={showToast} />}
+          {tab === "reviews" && <PatientReviewsView onNotify={showToast} />}
           {tab === "join" && <NurseOnboardingView onRegisterNurse={registerNurse} onGoHome={() => changeTab("home")} onGoToAdminNurses={adminUnlocked ? goToAdminNurses : null} onNotify={showToast} />}
           {tab === "booking" && (
             <BookingWizardView
@@ -4222,7 +4338,7 @@ export default function App() {
               }}
             />
           )}
-          {tab !== "admin" && <NabdFooter />}
+          {tab !== "admin" && <NabdFooter onGoBooking={handleGoBooking} />}
         </main>
 
         <NabdBottomNav currentTab={tab} onChangeTab={changeTab} patients={patients} onNotify={showToast} />
