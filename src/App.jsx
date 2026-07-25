@@ -2189,7 +2189,7 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
-  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [adminUnlocked, setAdminUnlocked] = useState(true); // مؤقتاً بدون باسورد
   const [showAdminPin, setShowAdminPin] = useState(false);
 
   const showToast = (msg) => {
@@ -2213,10 +2213,6 @@ export default function App() {
   }, [adminUnlocked]);
 
   const changeTab = (newTab) => {
-    if (newTab === "admin" && !adminUnlocked) {
-      setShowAdminPin(true);
-      return;
-    }
     setTab(newTab);
     window.location.hash = `#${newTab}`;
   };
@@ -2391,7 +2387,7 @@ export default function App() {
             />
           )}
           {tab === "admin" && (
-            adminUnlocked ? (
+            true ? (
               <MobileAdminControlView
                 nurses={nurses}
                 patients={patients}
