@@ -1,0 +1,18 @@
+{
+  "short_name": "نبض الإدارة",
+  "name": "نبض للتمريض المنزلي - لوحة التحكم الإدارية",
+  "icons": [
+    {
+      "src": "/assets/nabd_logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/#admin",
+  "background_color": "#041C36",
+  "theme_color": "#041C36",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl"
+}
