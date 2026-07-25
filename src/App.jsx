@@ -749,6 +749,16 @@ function NabdHeader({ onEmergencyClick, currentTab, onChangeTab, onNotify, onGoB
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => onChangeTab("admin")}
+            className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 min-h-[40px] transition-all ${
+              currentTab === "admin"
+                ? "bg-[#E39019] text-[#041C36] font-extrabold shadow-md"
+                : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
+            }`}
+          >
+            <UserCog size={14} /> الإدارة
+          </button>
+          <button
             onClick={() => onGoBooking(false)}
             className="carehub-btn-orange text-xs py-2 px-3.5 flex items-center gap-1.5 shadow-md font-bold hidden sm:flex"
           >
@@ -833,11 +843,8 @@ function NabdBottomNav({ currentTab, onChangeTab, adminUnlocked }) {
     { key: "home", label: "الرئيسية", icon: LayoutDashboard },
     { key: "booking", label: "حجز زيارة", icon: CalendarPlus },
     { key: "join", label: "انضمام ممرض", icon: UserPlus },
+    { key: "admin", label: "الإدارة", icon: UserCog, isAdmin: true },
   ];
-
-  if (adminUnlocked) {
-    navs.push({ key: "admin", label: "تحكم الإدارة", icon: Settings, isAdmin: true });
-  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-2xl px-2 py-1.5" style={{paddingBottom: "env(safe-area-inset-bottom, 0.375rem)"}}>
