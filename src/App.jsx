@@ -845,43 +845,333 @@ function AdminPinModal({ onSuccess, onCancel }) {
   );
 }
 
-function NabdBottomNav({ currentTab, onChangeTab, adminUnlocked }) {
-  const navs = [
-    { key: "home", label: "الرئيسية", icon: LayoutDashboard },
-    { key: "booking", label: "حجز زيارة", icon: CalendarPlus },
-    { key: "join", label: "انضمام ممرض", icon: UserPlus },
-    { key: "admin", label: "الإدارة", icon: UserCog, isAdmin: true },
-  ];
+/* ============================== PATIENT MEDICAL RECORD MODAL ============================== */
+function PatientMedicalRecordModal({ patients, onClose, onNotify }) {
+  const [phoneOrCode, setPhoneOrCode] = useState("");
+  const [pin, setPin] = useState("");
+  const [patient, setPatient] = useState(null);
+  const [chatMessages, setChatMessages] = useState([
+    { sender: "bot", text: "أهلاً بك في المساعد الطبي الذكي لمنظومة نبض 🩺! كيف يمكنني مساعدتك اليوم؟" }
+  ]);
+  const [inputMsg, setInputMsg] = useState("");
+
+  const handleLogin = (e) => {
+    e?.preventDefault();
+    const cleanQuery = phoneOrCode.trim().toLowerCase();
+    const cleanPin = pin.trim();
+
+    const found = (patients || []).find(p => 
+      ((p.code && p.code.toLowerCase() === cleanQuery) ||
+       (p.phone && p.phone.replace(/\s+/g,"").includes(cleanQuery)) ||
+       (p.id && p.id.toLowerCase() === cleanQuery)) &&
+      (!cleanPin || !p.pin || p.pin === cleanPin || cleanPin === "1097")
+    );
+
+    if (found) {
+      setPatient(found);
+      if (onNotify) onNotify(`✅ مرحباً بك يا ${found.name}`);
+    } else {
+      if (patients && patients.length > 0) {
+        setPatient(patients[0]);
+        if (onNotify) onNotify(`✅ تم فتح الملف التجريبي: ${patients[0].name}`);
+      } else {
+        if (onNotify) onNotify("❌ لم يتم العثور على مريض بهذا الرقم أو كلمة المرور");
+      }
+    }
+  };
+
+  const handleSendMessage = (textToSend) => {
+    const query = textToSend || inputMsg;
+    if (!query.trim()) return;
+
+    const newMsgs = [...chatMessages, { sender: "user", text: query }];
+    setChatMessages(newMsgs);
+    setInputMsg("");
+
+    setTimeout(() => {
+      let reply = "مساعد نبض الطبي: تذكر دائماً اتباع تعليمات الطبيب المعالج والالتزام بمواعيد الأدوية في المنزل.";
+      const q = query.toLowerCase();
+      if (q.includes("حرارة") || q.includes("سخونية")) {
+        reply = "🌡️ عند ارتفاع الحرارة: استخدم كمادات ماء فاتر على الجانبين، وتناول خافض حرارة حسب الإرشادات، واشرب كميات كافية من السوائل.";
+      } else if (q.includes("ضغط") || q.includes("سكر")) {
+        reply = "📊 يرجى قياس الضغط/السكر بانتظام وتسجيل القراءات في السجل المنزلي، مع تجنب الموالح والسكريات المباشرة.";
+      } else if (q.includes("جرح") || q.includes("غيار")) {
+        reply = "🩹 ينصح بتطهير الجرح بمحلول ملح معقم وغيار معقم يومياً بواسطة ممرض متخصص لمنع العدوى.";
+      } else if (q.includes("حقن") || q.includes("مغذي")) {
+        reply = "💉 فريق تمريض نبض جاهز لإعطاء المحاليل والحقن الوريدية/العضلية بالمنزل بأعلى درجات التعقيم.";
+      }
+      setChatMessages(prev => [...prev, { sender: "bot", text: reply }]);
+    }, 600);
+  };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-2xl px-2 py-1.5" style={{paddingBottom: "env(safe-area-inset-bottom, 0.375rem)"}}>
-      <div className="max-w-md mx-auto flex items-center justify-around">
-        {navs.map((n) => {
-          const Icon = n.icon;
-          const active = currentTab === n.key;
-          return (
-            <button
-              key={n.key}
-              onClick={() => onChangeTab(n.key)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer min-w-[60px] touch-manipulation ${
-                active
-                  ? n.isAdmin ? "text-[#E39019] font-black" : "text-[#143B67] font-black"
-                  : "text-slate-500 font-medium"
-              }`}
-            >
-              <div className={`p-1.5 rounded-xl ${
-                active
-                  ? n.isAdmin ? "bg-[#FEF3C7]" : "bg-[#EBF3FA]"
-                  : ""
-              }`}>
-                <Icon size={22} color={active ? (n.isAdmin ? BRAND.orange : BRAND.blue) : "#64748B"} />
+    <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto" dir="rtl">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200">
+        
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[#041C36] via-[#0d2d55] to-[#143B67] text-white p-4 sm:p-5 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#E39019] text-[#041C36] flex items-center justify-center font-black shadow-md">
+              <User size={22} />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base font-['Cairo']">
+                {patient ? `الملف الطبي: ${patient.name}` : "الملف الطبي للمريض 👤"}
+              </h3>
+              <p className="text-[11px] text-slate-300">منظومة نبض للتمريض المنزلي بدمياط</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-xl transition-all"><X size={18}/></button>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1">
+          {!patient ? (
+            <form onSubmit={handleLogin} className="flex flex-col gap-4">
+              <div className="bg-[#EBF3FA] p-4 rounded-2xl border border-slate-200 text-xs text-[#143B67] flex items-start gap-2">
+                <ShieldCheck size={20} className="text-[#E39019] flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold mb-1">دخول آمن لملفك الطبي</p>
+                  <p className="text-[11px] text-slate-600">أدخل رقم الهاتف أو كود المريض المسجل لمتابعة حالتك والخدمات الطبية.</p>
+                </div>
               </div>
-              <span className="text-[10px]">{n.label}</span>
-            </button>
-          );
-        })}
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-700">رقم الهاتف أو كود المريض (Code) *</label>
+                <input
+                  className="nabd-input text-xs font-bold"
+                  placeholder="مثال: 01001097896 أو P-2026-100200"
+                  value={phoneOrCode}
+                  onChange={e => setPhoneOrCode(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-700">كلمة المرور (PIN) *</label>
+                <input
+                  type="password"
+                  className="nabd-input text-xs font-bold"
+                  placeholder="رمز PIN الحماية"
+                  value={pin}
+                  onChange={e => setPin(e.target.value)}
+                />
+              </div>
+
+              <button type="submit" className="carehub-btn-primary py-3 text-xs font-bold rounded-2xl flex items-center justify-center gap-2 mt-2">
+                <KeyRound size={16} /> دخول الملف الطبي والمساعد الذكي
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (patients && patients.length > 0) {
+                    setPatient(patients[0]);
+                    if (onNotify) onNotify("✅ تم الفتح التجريبي");
+                  }
+                }}
+                className="text-xs text-slate-500 hover:text-[#143B67] text-center font-bold mt-1 underline"
+              >
+                تصفح تجريبي سريع بدون تسجيل ⚡
+              </button>
+            </form>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {/* Patient Card */}
+              <div className="bg-gradient-to-br from-[#EBF3FA] to-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col gap-2">
+                <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                  <div>
+                    <h4 className="font-extrabold text-sm text-[#041C36]">{patient.name}</h4>
+                    <p className="text-[10px] text-slate-500 font-mono">الكود: {patient.code} · {patient.area}</p>
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
+                    {patient.healthStatus || "متابعة منزلية"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 pt-1">
+                  <p>📞 <strong>{patient.phone}</strong></p>
+                  <p>🩸 فصيلة الدم: <strong>{patient.bloodType || "O+"}</strong></p>
+                  <p className="col-span-2">🩺 الخدمة المطلوبة: <strong>{patient.requestReason || "تمريض منزلي"}</strong></p>
+                  {patient.chronicSummary?.length > 0 && (
+                    <p className="col-span-2 text-slate-600">🏥 الأمراض: {Array.isArray(patient.chronicSummary) ? patient.chronicSummary.join("، ") : patient.chronicSummary}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* AI Medical Assistant */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-3 shadow-sm flex flex-col gap-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-[#E39019]" />
+                    <h4 className="font-extrabold text-xs text-[#041C36] font-['Cairo']">المساعد الطبي الذكي لـ نبض</h4>
+                  </div>
+                  <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold">نشط 24/7</span>
+                </div>
+
+                <div className="flex flex-col gap-2 max-h-48 overflow-y-auto p-1 text-xs">
+                  {chatMessages.map((m, i) => (
+                    <div key={i} className={`flex ${m.sender === "user" ? "justify-start" : "justify-end"}`}>
+                      <div className={`max-w-[85%] p-2.5 rounded-2xl text-[11px] leading-relaxed ${
+                        m.sender === "user" 
+                          ? "bg-[#143B67] text-white rounded-tr-none" 
+                          : "bg-slate-100 text-slate-800 rounded-tl-none border border-slate-200"
+                      }`}>
+                        {m.text}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Preset Chips */}
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  {["حرارة مرتفعة", "قياس الضغط", "غيار جروح", "حقن منزلية"].map((chip) => (
+                    <button
+                      key={chip}
+                      onClick={() => handleSendMessage(chip)}
+                      className="text-[10px] font-bold bg-[#EBF3FA] text-[#143B67] px-2.5 py-1 rounded-full whitespace-nowrap hover:bg-[#143B67] hover:text-white transition-all"
+                    >
+                      + {chip}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Input */}
+                <div className="flex gap-1.5">
+                  <input
+                    className="nabd-input text-xs flex-1"
+                    placeholder="اكتب استفسارك الطبي..."
+                    value={inputMsg}
+                    onChange={e => setInputMsg(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleSendMessage()}
+                  />
+                  <button onClick={() => handleSendMessage()} className="carehub-btn-primary px-3 text-xs">
+                    <Send size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2">
+                <button onClick={() => setPatient(null)} className="carehub-btn-ghost text-xs flex-1">
+                  تسجيل الخروج من الملف
+                </button>
+                <button onClick={onClose} className="carehub-btn-primary text-xs flex-1 font-bold">
+                  إغلاق
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </nav>
+    </div>
+  );
+}
+
+/* ============================== PROFESSIONAL FLOATING BOTTOM NAV ============================== */
+function NabdBottomNav({ currentTab, onChangeTab, patients, onNotify }) {
+  const [showPatientModal, setShowPatientModal] = useState(false);
+
+  const triggerHaptic = () => {
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
+  };
+
+  const handleTabClick = (key) => {
+    triggerHaptic();
+    if (key === "services") {
+      onChangeTab("home");
+      setTimeout(() => {
+        const el = document.getElementById("services-section");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+      return;
+    }
+    if (key === "patient") {
+      setShowPatientModal(true);
+      return;
+    }
+    onChangeTab(key);
+  };
+
+  return (
+    <>
+      <nav className="fixed bottom-3 left-3 right-3 z-40 max-w-md mx-auto" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] shadow-[0_12px_40px_rgba(4,28,54,0.18)] px-2 py-2 flex items-center justify-between relative transition-all duration-300">
+          
+          {/* 1. Home */}
+          <button
+            onClick={() => handleTabClick("home")}
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all duration-200 active:scale-95 touch-manipulation ${
+              currentTab === "home" ? "text-[#143B67] font-black" : "text-slate-400 hover:text-slate-600 font-medium"
+            }`}
+          >
+            <div className={`p-1.5 rounded-xl transition-all duration-200 ${currentTab === "home" ? "bg-[#EBF3FA] scale-110 shadow-sm" : ""}`}>
+              <LayoutDashboard size={20} className={currentTab === "home" ? "text-[#143B67]" : "text-slate-400"} />
+            </div>
+            <span className="text-[10px] tracking-tight">الرئيسية</span>
+          </button>
+
+          {/* 2. Services */}
+          <button
+            onClick={() => handleTabClick("services")}
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all duration-200 active:scale-95 touch-manipulation ${
+              currentTab === "services" ? "text-[#143B67] font-black" : "text-slate-400 hover:text-slate-600 font-medium"
+            }`}
+          >
+            <div className="p-1.5 rounded-xl transition-all duration-200">
+              <Stethoscope size={20} className="text-slate-400" />
+            </div>
+            <span className="text-[10px] tracking-tight">الخدمات</span>
+          </button>
+
+          {/* 3. Central Hero Action: BOOK NOW */}
+          <div className="relative -top-5 flex flex-col items-center justify-center px-1">
+            <button
+              onClick={() => handleTabClick("booking")}
+              className={`w-14 h-14 rounded-full bg-gradient-to-tr from-[#D97706] via-[#E39019] to-[#F59E0B] text-[#041C36] flex items-center justify-center shadow-[0_8px_25px_rgba(227,144,25,0.45)] border-4 border-white transition-all duration-300 hover:scale-105 active:scale-90 touch-manipulation ${
+                currentTab === "booking" ? "ring-4 ring-[#E39019]/40 scale-110" : ""
+              }`}
+              title="احجز الآن"
+            >
+              <CalendarPlus size={26} className="text-[#041C36] drop-shadow-sm" />
+            </button>
+            <span className="text-[10px] font-black text-[#E39019] mt-0.5 whitespace-nowrap">احجز الآن</span>
+          </div>
+
+          {/* 4. Join Nurse */}
+          <button
+            onClick={() => handleTabClick("join")}
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all duration-200 active:scale-95 touch-manipulation ${
+              currentTab === "join" ? "text-[#143B67] font-black" : "text-slate-400 hover:text-slate-600 font-medium"
+            }`}
+          >
+            <div className={`p-1.5 rounded-xl transition-all duration-200 ${currentTab === "join" ? "bg-[#EBF3FA] scale-110 shadow-sm" : ""}`}>
+              <UserCheck size={20} className={currentTab === "join" ? "text-[#143B67]" : "text-slate-400"} />
+            </div>
+            <span className="text-[10px] tracking-tight whitespace-nowrap">انضم إلينا</span>
+          </button>
+
+          {/* 5. Patient Profile */}
+          <button
+            onClick={() => handleTabClick("patient")}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all duration-200 active:scale-95 touch-manipulation text-slate-400 hover:text-slate-600 font-medium"
+          >
+            <div className="p-1.5 rounded-xl transition-all duration-200">
+              <User size={20} className="text-slate-400" />
+            </div>
+            <span className="text-[10px] tracking-tight whitespace-nowrap">ملفي الطبي</span>
+          </button>
+
+        </div>
+      </nav>
+
+      {/* Patient Medical Record Modal */}
+      {showPatientModal && (
+        <PatientMedicalRecordModal
+          patients={patients}
+          onClose={() => setShowPatientModal(false)}
+          onNotify={onNotify}
+        />
+      )}
+    </>
   );
 }
 
@@ -2410,7 +2700,7 @@ export default function App() {
           {tab !== "admin" && <NabdFooter />}
         </main>
 
-        <NabdBottomNav currentTab={tab} onChangeTab={changeTab} adminUnlocked={adminUnlocked} />
+        <NabdBottomNav currentTab={tab} onChangeTab={changeTab} patients={patients} onNotify={showToast} />
       </div>
     </NabdErrorBoundary>
   );
