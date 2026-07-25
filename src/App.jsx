@@ -2189,7 +2189,7 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
-  const [adminUnlocked, setAdminUnlocked] = useState(true); // مؤقتاً بدون باسورد
+  const [adminUnlocked, setAdminUnlocked] = useState(true);
   const [showAdminPin, setShowAdminPin] = useState(false);
 
   const showToast = (msg) => {
@@ -2200,17 +2200,11 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const h = getTabFromHash();
-      if (h === "admin" && !adminUnlocked) {
-        setShowAdminPin(true);
-      }
       setTab(h);
     };
     window.addEventListener("hashchange", handleHashChange);
-    if (getTabFromHash() === "admin" && !adminUnlocked) {
-      setShowAdminPin(true);
-    }
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [adminUnlocked]);
+  }, []);
 
   const changeTab = (newTab) => {
     setTab(newTab);
@@ -2383,55 +2377,38 @@ export default function App() {
               onCreateInvoice={createInvoiceLocal}
               onNotify={showToast}
               initialServiceId={selectedServiceId}
-              onGoToAppointments={() => adminUnlocked ? changeTab("admin") : showToast("⚠️ الإدارة مقيّدة — سيتم تسجيل الحجز بالسجل")}
+              onGoToAppointments={() => changeTab("admin")}
             />
           )}
           {tab === "admin" && (
-            true ? (
-              <MobileAdminControlView
-                nurses={nurses}
-                patients={patients}
-                bookings={bookings}
-                cases={cases}
-                invoices={invoices}
-                onApproveNurse={() => {}}
-                onRejectNurse={() => {}}
-                onCreateCase={() => {}}
-                onUpdateCaseStatus={() => {}}
-                onDeleteCase={() => {}}
-                onNotify={showToast}
-                onCreatePatient={createPatient}
-                onCreateNurse={registerNurse}
-                onCreateInvoice={createInvoice}
-                onDeletePatient={deletePatient}
-                onDeleteNurse={deleteNurse}
-                onDeleteBooking={deleteBooking}
-                onDeleteInvoice={deleteInvoice}
-                onUpdatePatient={updatePatient}
-                onUpdateNurse={updateNurse}
-                onUpdateBooking={updateBooking}
-                onUpdateInvoice={updateInvoice}
-                onLogout={() => {
-                  setAdminUnlocked(false);
-                  changeTab("home");
-                  showToast("تم تسجيل الخروج من لوحة الإدارة بأمان 🔒");
-                }}
-              />
-            ) : (
-              <div className="bg-white rounded-3xl p-8 border border-slate-200 text-center flex flex-col items-center gap-4 my-8 shadow-sm" dir="rtl">
-                <div className="w-16 h-16 bg-[#EBF3FA] text-[#143B67] rounded-full flex items-center justify-center text-2xl font-bold">
-                  🔐
-                </div>
-                <h3 className="font-extrabold text-lg text-slate-900 font-['Cairo']">لوحة الإدارة مقفلة</h3>
-                <p className="text-xs text-slate-500 max-w-xs">يرجى إدخال رمز PIN الإداري للوصول إلى اللوحة والتفاصيل كاملة.</p>
-                <button
-                  onClick={() => setShowAdminPin(true)}
-                  className="carehub-btn-primary px-6 py-3 text-xs font-bold"
-                >
-                  إدخال رمز PIN 🔑
-                </button>
-              </div>
-            )
+            <MobileAdminControlView
+              nurses={nurses}
+              patients={patients}
+              bookings={bookings}
+              cases={cases}
+              invoices={invoices}
+              onApproveNurse={() => {}}
+              onRejectNurse={() => {}}
+              onCreateCase={() => {}}
+              onUpdateCaseStatus={() => {}}
+              onDeleteCase={() => {}}
+              onNotify={showToast}
+              onCreatePatient={createPatient}
+              onCreateNurse={registerNurse}
+              onCreateInvoice={createInvoice}
+              onDeletePatient={deletePatient}
+              onDeleteNurse={deleteNurse}
+              onDeleteBooking={deleteBooking}
+              onDeleteInvoice={deleteInvoice}
+              onUpdatePatient={updatePatient}
+              onUpdateNurse={updateNurse}
+              onUpdateBooking={updateBooking}
+              onUpdateInvoice={updateInvoice}
+              onLogout={() => {
+                changeTab("home");
+                showToast("تم الانتقال إلى الصفحة الرئيسية 🏠");
+              }}
+            />
           )}
           {tab !== "admin" && <NabdFooter />}
         </main>
