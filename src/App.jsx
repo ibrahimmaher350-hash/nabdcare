@@ -2173,82 +2173,123 @@ function BookingWizardView({ patients, nurses, bookings, onCreatePatient, onCrea
 
   const selectedService = FLAT_SERVICES.find((s) => s.id === wiz.serviceId) || FLAT_SERVICES[0];
 
-  const handleConfirmBooking = () => {
+  const handleConfirmBooking = async () => {
+    if (!wiz.patientName || !wiz.phone) {
+      onNotify("❌ يرجى إدخال اسم المريض ورقم الهاتف");
+      return;
+    }
+
     setProcessing(true);
-    setTimeout(() => {
-      const patientCode = generatePatientCode();
-      const patientPin = generatePatientPin();
-      const newPatient = {
-        id: uid("pat"),
-        code: patientCode,
-        pin: patientPin,
-        name: wiz.patientName || "مريض دمياط",
+    
+    try {
+      const payload = {
+        type: "patient",
+        name: wiz.patientName,
         phone: wiz.phone,
         whatsapp: wiz.phone,
-        area: wiz.area,
-        addressDetail: wiz.addressDetail,
-        landmark: "",
-        healthStatus: "متابعة منزلية",
-        requestReason: selectedService.name,
-        usualNurse: "ممرض/ إبراهيم ماهر",
-        chronicSummary: ["متابعة روتينية"],
-        allergies: [],
-        balance: `${wiz.price || 0} ج.م`,
-        price: Number(wiz.price) || 0,
-        guardian: null,
-        createdAt: Date.now(),
-      };
-
-      onCreatePatient(newPatient);
-
-      const bookingId = uid("bk");
-      const booking = {
-        id: bookingId,
-        patientId: newPatient.id,
-        patientName: newPatient.name,
-        patientCode,
-        serviceId: selectedService.id,
-        serviceName: selectedService.name,
-        area: wiz.area,
-        addressDetail: wiz.addressDetail,
-        date: wiz.date,
-        time: wiz.time,
-        status: "confirmed",
-        nurseName: "ممرض/ إبراهيم ماهر",
-        phone: wiz.phone,
-        price: Number(wiz.price) || 0,
-        createdAt: Date.now(),
-      };
-
-      onCreateBookings([booking]);
-
-      const invoice = {
-        id: `INV-${Date.now()}`,
-        bookingId,
-        patientId: newPatient.id,
-        patientName: newPatient.name,
-        patientCode,
+        address: wiz.area + (wiz.addressDetail ? " - " + wiz.addressDetail : ""),
         service: selectedService.name,
-        area: wiz.area,
-        date: wiz.date,
-        amount: `${wiz.price || 0} ج.م`,
-        status: "مدفوع",
-        createdAt: Date.now(),
+        notes: "الموعد: " + wiz.date + " " + wiz.time,
       };
 
-      if (onCreateInvoice) onCreateInvoice(invoice);
+      const response = await fetch("https://script.google.com/macros/s/AKfycbyOwjexAqUzIoiy19_pnNx1Ps4zQgNOqhy51rv4jpHeECQjbMBQOhuV5yrX3w23hlKVTg/exec", {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
+        body: JSON.stringify(payload),
+      });
 
-      setResult(booking);
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state to keep the admin dashboard working
+        const patientCode = data.patientId || generatePatientCode();
+        const patientPin = data.password || generatePatientPin();
+        const newPatient = {
+          id: data.patientId || uid("pat"),
+          code: patientCode,
+          pin: patientPin,
+          name: wiz.patientName || "مريض دمياط",
+          phone: wiz.phone,
+          whatsapp: wiz.phone,
+          area: wiz.area,
+          addressDetail: wiz.addressDetail,
+          landmark: "",
+          healthStatus: "متابعة منزلية",
+          requestReason: selectedService.name,
+          usualNurse: "ممرض/ إبراهيم ماهر",
+          chronicSummary: ["متابعة روتينية"],
+          allergies: [],
+          balance: `${wiz.price || 0} ج.م`,
+          price: Number(wiz.price) || 0,
+          guardian: null,
+          createdAt: Date.now(),
+        };
+
+        onCreatePatient(newPatient);
+
+        const bookingId = uid("bk");
+        const booking = {
+          id: bookingId,
+          patientId: newPatient.id,
+          patientName: newPatient.name,
+          patientCode,
+          serviceId: selectedService.id,
+          serviceName: selectedService.name,
+          area: wiz.area,
+          addressDetail: wiz.addressDetail,
+          date: wiz.date,
+          time: wiz.time,
+          status: "confirmed",
+          nurseName: "ممرض/ إبراهيم ماهر",
+          phone: wiz.phone,
+          price: Number(wiz.price) || 0,
+          createdAt: Date.now(),
+        };
+
+        onCreateBookings([booking]);
+
+        if (onCreateInvoice) {
+          const invoice = {
+            id: `INV-${Date.now()}`,
+            bookingId,
+            patientId: newPatient.id,
+            patientName: newPatient.name,
+            patientCode,
+            service: selectedService.name,
+            area: wiz.area,
+            date: wiz.date,
+            amount: `${wiz.price || 0} ج.م`,
+            status: "مدفوع",
+            createdAt: Date.now(),
+          };
+          onCreateInvoice(invoice);
+        }
+
+        setResult({
+          patientId: data.patientId,
+          password: data.password,
+          serviceName: selectedService.name,
+        });
+        
+        setProcessing(false);
+        setStep(3);
+
+        onNotify(`✅ تم الحجز بنجاح! تم إنشاء ملف المريض.`);
+        
+        sendWhatsAppNotification(
+          "📅 حجز زيارة تمريضية جديد",
+          `المريض: ${newPatient.name} | الكود: ${patientCode} | الخدمة: ${selectedService.name} | المنطقة: ${wiz.area} | الموعد: ${wiz.date} ${wiz.time} | المبلغ: ${wiz.price || 0} ج.م`
+        );
+      } else {
+        throw new Error("فشل الحجز من الخادم.");
+      }
+    } catch (error) {
+      console.error(error);
+      onNotify("❌ حدث خطأ في الاتصال بالسيرفر. يرجى التأكد من اتصالك بالإنترنت والمحاولة مرة أخرى.");
       setProcessing(false);
-      setStep(3);
-
-      onNotify(`✅ تم حجز (${selectedService.name}) للمريض (${newPatient.name}) وإضافته للسجلات تلقائياً! 🏠`);
-      sendWhatsAppNotification(
-        "📅 حجز زيارة تمريضية جديد",
-        `المريض: ${newPatient.name} | الكود: ${patientCode} | الخدمة: ${selectedService.name} | المنطقة: ${wiz.area} | الموعد: ${wiz.date} ${wiz.time} | المبلغ: ${wiz.price || 0} ج.م`
-      );
-      if (onGoToAppointments) onGoToAppointments();
-    }, 800);
+    }
   };
 
   return (
@@ -2341,15 +2382,43 @@ function BookingWizardView({ patients, nurses, bookings, onCreatePatient, onCrea
       )}
 
       {step === 3 && (
-        <div className="text-center flex flex-col items-center gap-3 py-4">
-          <CheckCircle size={48} className="text-[#10B981]" />
-          <h3 className="font-extrabold text-lg text-slate-900 font-['Cairo']">تم حفظ الحجز وتحويله للواتساب والمزامنة!</h3>
-          <div className="flex flex-col gap-2 w-full max-w-xs">
-            <button onClick={onGoToAppointments} className="carehub-btn-wa text-xs py-2.5 font-bold">
-              📋 عرض سِجل الحجوزات في الإدارة
+        <div className="text-center flex flex-col items-center gap-4 py-6">
+          <div className="w-16 h-16 bg-[#10B981]/10 text-[#10B981] rounded-full flex items-center justify-center mb-2 shadow-inner">
+            <CheckCircle size={40} />
+          </div>
+          <h3 className="font-extrabold text-xl text-slate-900 font-['Cairo']">تم الحجز بنجاح!</h3>
+          
+          <div className="bg-[#F8FAFC] border border-slate-200 rounded-2xl p-5 w-full max-w-sm mt-2 text-right">
+            <p className="text-sm font-bold text-[#041C36] mb-3 border-b border-slate-200 pb-2">بيانات حساب المريض الخاص بك:</p>
+            <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm">
+              <span className="text-xs text-slate-500 font-bold">رقم المريض (ID)</span>
+              <span className="font-black text-[#143B67] text-sm font-mono" dir="ltr">{result?.patientId || "N/A"}</span>
+            </div>
+            <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+              <span className="text-xs text-slate-500 font-bold">كلمة المرور (Password)</span>
+              <span className="font-black text-[#E39019] text-sm font-mono" dir="ltr">{result?.password || "N/A"}</span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-3 text-center leading-relaxed font-semibold">يرجى الاحتفاظ بهذه البيانات بشكل آمن لتسجيل الدخول لاحقاً ومتابعة ملفك الطبي وتقارير الزيارات.</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm mt-4">
+            <button onClick={() => {
+              const url = `${window.location.origin}${window.location.pathname}#booking`;
+              const text = `🏥 احجز زيارة تمريضية منزلية الآن مع نبض دمياط!\n${url}\nللتواصل: ${BRAND.phone}`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+            }} className="carehub-btn-wa text-xs py-3 font-bold flex-1 flex items-center justify-center gap-2">
+              <Share2 size={16} /> مشاركة للحجز
             </button>
-            <button onClick={() => { window.location.hash="#admin"; }} className="carehub-btn-primary text-xs py-2.5 font-bold">
-              👥 عرض ملف المريض في الإدارة
+            <button onClick={() => {
+              setWiz({
+                ...wiz,
+                patientName: "",
+                phone: BRAND.phone,
+                addressDetail: ""
+              });
+              setStep(1);
+            }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs py-3 rounded-xl font-bold flex-1 transition-colors border border-slate-200">
+              حجز جديد
             </button>
           </div>
         </div>
