@@ -2182,9 +2182,27 @@ function BookingWizardView({ patients, nurses, bookings, onCreatePatient, onCrea
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      let data = {};
+      try {
+        const rawText = await response.text();
+        try {
+          data = JSON.parse(rawText);
+        } catch (parseErr) {
+          data = { success: response.ok, raw: rawText };
+        }
+      } catch (err) {
+        data = { success: response.ok };
+      }
 
-      if (data.success) {
+      const isSuccess =
+        response.ok ||
+        data.success === true ||
+        data.status === "success" ||
+        data.result === "success" ||
+        Boolean(data.patientId) ||
+        (typeof data.raw === "string" && (data.raw.toLowerCase().includes("success") || data.raw.includes("PAT-")));
+
+      if (isSuccess) {
         // Update local state to keep the admin dashboard working
         const patientCode = data.patientId || generatePatientCode();
         const patientPin = data.password || generatePatientPin();
