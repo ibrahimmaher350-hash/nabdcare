@@ -57,28 +57,6 @@ class NabdErrorBoundary extends Component {
   }
 }
 
-/* ============================== محاكاة التخزين المحلي ============================== */
-if (typeof window !== "undefined") {
-  if (!window.storage) window.storage = {};
-  if (typeof window.storage.get !== "function") {
-    window.storage.get = async (key) => {
-      try {
-        const val = localStorage.getItem(key);
-        return val ? { value: val } : null;
-      } catch (e) {
-        return null;
-      }
-    };
-  }
-  if (typeof window.storage.set !== "function") {
-    window.storage.set = async (key, val) => {
-      try {
-        localStorage.setItem(key, val);
-      } catch (e) {}
-    };
-  }
-}
-
 /* ============================== ثوابت البراند بدمياط ============================== */
 
 const ADMIN_PIN = "1097";
@@ -2412,7 +2390,7 @@ function BookingWizardView({ patients, nurses, bookings, onCreatePatient, onCrea
 
 /* ============================== MAIN APP COMPONENT ============================== */
 
-const STORAGE_KEY = "nabd_damietta_carehub_v18";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbyOwjexAqUzIoiy19_pnNx1Ps4zQgNOqhy51rv4jpHeECQjbMBQOhuV5yrX3w23hlKVTg/exec";
 
 export default function App() {
   const getTabFromHash = () => {
@@ -2422,7 +2400,7 @@ export default function App() {
 
   const [tab, setTab] = useState(() => {
     const h = getTabFromHash();
-    return h === "admin" ? "home" : h; // never start on admin directly
+    return h === "admin" ? "home" : h;
   });
   const [patients, setPatients] = useState([]);
   const [nurses, setNurses] = useState([]);
@@ -2462,62 +2440,104 @@ export default function App() {
     window.location.hash = `#${newTab}`;
   };
 
+  // 1. Load data from Google Sheets API
   useEffect(() => {
     (async () => {
       try {
-        const res = await window.storage.get(STORAGE_KEY, false);
-        if (res && res.value) {
-          const data = JSON.parse(res.value);
-          setPatients(data.patients && data.patients.length ? data.patients : buildSeedPatients());
-          setNurses(data.nurses && data.nurses.length ? data.nurses : buildSeedNurses());
-          setBookings(data.bookings && data.bookings.length ? data.bookings : buildSeedBookings());
+        const response = await fetch(GOOGLE_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "getAllData" })
+        });
+        const data = await response.json();
+        if (data.success) {
+          setPatients(data.patients || []);
+          setNurses(data.nurses || []);
+          setBookings(data.bookings || []);
           setCases(data.cases || []);
-          setInvoices(data.invoices && data.invoices.length ? data.invoices : buildSeedInvoices());
+          setInvoices(data.invoices || []);
         } else {
-          setPatients(buildSeedPatients());
-          setNurses(buildSeedNurses());
-          setBookings(buildSeedBookings());
-          setInvoices(buildSeedInvoices());
+          setPatients([]); setNurses([]); setBookings([]); setInvoices([]); setCases([]);
         }
       } catch (e) {
-        setPatients(buildSeedPatients());
-        setNurses(buildSeedNurses());
-        setBookings(buildSeedBookings());
-        setInvoices(buildSeedInvoices());
+        console.error("Failed to fetch data:", e);
+        setPatients([]); setNurses([]); setBookings([]); setInvoices([]); setCases([]);
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  // Auto-save to localStorage on data change
-  useEffect(() => {
-    if (loading) return;
+  // Helper for API mutations
+  const apiMutate = async (action, table, id, payloadData) => {
     try {
-      window.storage.set(STORAGE_KEY, JSON.stringify({ patients, nurses, bookings, cases, invoices }));
-    } catch (e) {}
-  }, [patients, nurses, bookings, cases, invoices, loading]);
-
-  const createPatient = (data) => {
+      const response = await fetch(GOOGLE_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action, table, id, data: payloadData })
+      });
+      const data = await response.json();
+      return data.success;
+    } catch (e) {
+      console.error("Mutation failed", e);
+      return false;
+    }
+  };
+  const createPatient = async (data) => {
     setPatients((prev) => [data, ...prev]);
+    await apiMutate("create", "patients", data.id, data);
   };
 
-  const registerNurse = (data) => {
+  const registerNurse = async (data) => {
     const n = data.id ? data : { id: uid("nur"), photo: `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=143B67&color=fff&size=128&bold=true`, coord: areaCoord(data.area), ...data };
     setNurses((prev) => [...prev, n]);
+    await apiMutate("create", "nurses", n.id, n);
   };
 
-  const deletePatient = (id) => setPatients((prev) => prev.filter((p) => p.id !== id));
-  const deleteNurse = (id) => setNurses((prev) => prev.filter((n) => n.id !== id));
-  const deleteBooking = (id) => setBookings((prev) => prev.filter((b) => b.id !== id));
-  const deleteInvoice = (id) => setInvoices((prev) => prev.filter((inv) => inv.id !== id));
-  const updatePatient = (id, patch) => setPatients((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p));
-  const updateNurse = (id, patch) => setNurses((prev) => prev.map((n) => n.id === id ? { ...n, ...patch } : n));
-  const updateBooking = (id, patch) => setBookings((prev) => prev.map((b) => b.id === id ? { ...b, ...patch } : b));
-  const updateInvoice = (id, patch) => setInvoices((prev) => prev.map((inv) => inv.id === id ? { ...inv, ...patch } : inv));
+  const deletePatient = async (id) => {
+    setPatients((prev) => prev.filter((p) => p.id !== id));
+    await apiMutate("delete", "patients", id);
+  };
+  const deleteNurse = async (id) => {
+    setNurses((prev) => prev.filter((n) => n.id !== id));
+    await apiMutate("delete", "nurses", id);
+  };
+  const deleteBooking = async (id) => {
+    setBookings((prev) => prev.filter((b) => b.id !== id));
+    await apiMutate("delete", "bookings", id);
+  };
+  const deleteInvoice = async (id) => {
+    setInvoices((prev) => prev.filter((inv) => inv.id !== id));
+    await apiMutate("delete", "invoices", id);
+  };
+  
+  const updatePatient = async (id, patch) => {
+    setPatients((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p));
+    await apiMutate("update", "patients", id, patch);
+  };
+  const updateNurse = async (id, patch) => {
+    setNurses((prev) => prev.map((n) => n.id === id ? { ...n, ...patch } : n));
+    await apiMutate("update", "nurses", id, patch);
+  };
+  const updateBooking = async (id, patch) => {
+    setBookings((prev) => prev.map((b) => b.id === id ? { ...b, ...patch } : b));
+    await apiMutate("update", "bookings", id, patch);
+  };
+  const updateInvoice = async (id, patch) => {
+    setInvoices((prev) => prev.map((inv) => inv.id === id ? { ...inv, ...patch } : inv));
+    await apiMutate("update", "invoices", id, patch);
+  };
 
-  const createBookings = (newOnes) => setBookings((prev) => [...prev, ...newOnes]);
-  const createInvoice = (inv) => setInvoices((prev) => [inv, ...prev]);
+  const createBookings = async (newOnes) => {
+    setBookings((prev) => [...prev, ...newOnes]);
+    for (const b of newOnes) {
+      await apiMutate("create", "bookings", b.id, b);
+    }
+  };
+  const createInvoice = async (inv) => {
+    setInvoices((prev) => [inv, ...prev]);
+    await apiMutate("create", "invoices", inv.id, inv);
+  };
 
   const goToAdminNurses = () => {
     if (adminUnlocked) {
