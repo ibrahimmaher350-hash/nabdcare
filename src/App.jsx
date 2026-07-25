@@ -11,7 +11,7 @@ import {
   TrendingUp, DollarSign, Layers, Lock, ShieldAlert, Radio, HelpCircle, FilePlus, Smartphone, Monitor,
   Cpu, Building2, Compass, FileSpreadsheet as SheetIcon, FileCode, CheckSquare as CheckIcon, Filter, Play,
   QrCode, Key, Dog, FileSpreadsheet as FileCsv, FileText as FilePdf, Image, Video, Mic, Flame, Scale, Activity as Pulse,
-  Briefcase, GraduationCap, FileCheck2, Landmark, ShieldQuestion, PenTool, Wrench, Ban, KeyRound, LockKeyhole
+  Briefcase, GraduationCap, FileCheck2, Landmark, ShieldQuestion, PenTool, Wrench, Ban, KeyRound, LockKeyhole, Info
 } from "lucide-react";
 
 /* ============================== ERROR BOUNDARY ============================== */
@@ -1441,6 +1441,671 @@ function HomeHeroView({ onGoBooking, onGoJoin, onNotify, stats }) {
   );
 }
 
+/* ============================== NURSE ONBOARDING VIEW (انضم لفريقنا) ============================== */
+function NurseOnboardingView({ onRegisterNurse, onGoHome, onGoToAdminNurses, onNotify }) {
+  const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedNurse, setSubmittedNurse] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  // Form State
+  const [form, setForm] = useState({
+    // 1. Personal
+    name: "",
+    phone: "",
+    whatsapp: "",
+    email: "",
+    dob: "",
+    gender: "ذكر",
+    governorate: "دمياط",
+    area: DAMIETTA_AREAS[0].name,
+    address: "",
+
+    // 2. Professional
+    license: "",
+    licenseBody: "وزارة الصحة المصرية",
+    gradYear: "2022",
+    degree: "بكالوريوس تمريض",
+    specialty: "تمريض عام ومتابعة منزلية",
+    exp: "3",
+    previousWork: "",
+    certifications: "",
+    servicesOffered: ["حقن ومحاليل", "غيار جروح معقم"],
+    coverageAreas: ["دمياط القديمة / البندر", "دمياط الجديدة"],
+    availableShifts: "صباحي ومسائي",
+
+    // 3. Documents
+    nationalIdPhoto: null,
+    licensePhoto: null,
+    degreePhoto: null,
+    personalPhoto: null,
+  });
+
+  const availableServicesList = [
+    "حقن ومحاليل وريدية",
+    "غيار جروح حرج ومعقم",
+    "تركيب وفك قسطرة بولية",
+    "سحب عينات تحاليل",
+    "رعاية كبار السن والأمراض المزمنة",
+    "تركيب رايل تغذية",
+    "رعاية الحالات الحرجة والعناية",
+    "جلسات نيبوليزر وأوكسجين"
+  ];
+
+  const toggleService = (srv) => {
+    setForm(prev => {
+      const exists = prev.servicesOffered.includes(srv);
+      return {
+        ...prev,
+        servicesOffered: exists 
+          ? prev.servicesOffered.filter(s => s !== srv)
+          : [...prev.servicesOffered, srv]
+      };
+    });
+  };
+
+  const toggleArea = (aName) => {
+    setForm(prev => {
+      const exists = prev.coverageAreas.includes(aName);
+      return {
+        ...prev,
+        coverageAreas: exists
+          ? prev.coverageAreas.filter(a => a !== aName)
+          : [...prev.coverageAreas, aName]
+      };
+    });
+  };
+
+  const generateNurseCode = () => {
+    const rand = Math.floor(100000 + Math.random() * 900000);
+    return `NUR-2026-${rand}`;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    // Validation
+    if (!form.name.trim() || form.name.trim().split(" ").length < 3) {
+      if (onNotify) onNotify("❌ يرجى إدخال الاسم الرباعي بالكامل");
+      setStep(1);
+      return;
+    }
+    if (!form.phone.trim() || form.phone.trim().length < 10) {
+      if (onNotify) onNotify("❌ يرجى إدخال رقم هاتف صحيح");
+      setStep(1);
+      return;
+    }
+    if (!form.license.trim()) {
+      if (onNotify) onNotify("❌ يرجى إدخال رقم ترخيص مزاولة المهنة");
+      setStep(2);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const nurseId = generateNurseCode();
+      const tempPassword = generatePatientPin();
+
+      const newNurse = {
+        id: uid("nur"),
+        jobCode: nurseId,
+        tempPassword: tempPassword,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        whatsapp: (form.whatsapp || form.phone).trim(),
+        email: form.email.trim(),
+        dob: form.dob,
+        gender: form.gender,
+        governorate: form.governorate,
+        area: form.area,
+        address: form.address.trim(),
+        license: form.license.trim(),
+        licenseBody: form.licenseBody,
+        gradYear: form.gradYear,
+        degree: form.degree,
+        specialty: form.specialty,
+        exp: form.exp,
+        previousWork: form.previousWork,
+        certifications: form.certifications,
+        servicesOffered: form.servicesOffered.join("، "),
+        coverageAreas: form.coverageAreas.join("، "),
+        availableShifts: form.availableShifts,
+        status: "Pending", // Saved in Google Sheets as Pending
+        rating: "5.0",
+        reviews: 0,
+        createdAt: Date.now(),
+        dateStr: new Date().toLocaleDateString("ar-EG"),
+      };
+
+      // 1. Call parent onRegisterNurse (Post data to Google Sheets API)
+      if (onRegisterNurse) {
+        await onRegisterNurse(newNurse);
+      }
+
+      // 2. Prepare Nurse WhatsApp confirmation message
+      const nurseMsg = `مرحباً ${newNurse.name} 👋
+تم استلام طلب انضمامك إلى فريق نبض للتمريض المنزلي بنجاح.
+
+رقم الطلب الخاص بك: ${newNurse.jobCode}
+كلمة المرور المؤقتة: ${newNurse.tempPassword}
+حالة الطلب: قيد المراجعة ⏳
+
+سيتم مراجعة بياناتك والتواصل معك في أقرب وقت. شكراً لانضمامك إلينا! 🩺`;
+
+      // Trigger Nurse WhatsApp confirmation window
+      window.open(`https://wa.me/20${newNurse.whatsapp}?text=${encodeURIComponent(nurseMsg)}`, "_blank");
+
+      // Set submitted nurse & transition to Success Screen
+      setSubmittedNurse(newNurse);
+      setIsSubmitting(false);
+
+      if (onNotify) onNotify("🎉 تم تقديم طلب الانضمام وحفظه بنجاح!");
+    } catch (err) {
+      console.error("Nurse registration error:", err);
+      setIsSubmitting(false);
+      setErrorMessage("حدث خطأ أثناء حفظ الطلب في Google Sheets. يرجى التأكد من الاتصال بالإنترنت والمحاولة مجدداً.");
+      if (onNotify) onNotify("❌ فشل الحفظ في Google Sheets");
+    }
+  };
+
+  // SUCCESS SCREEN
+  if (submittedNurse) {
+    return (
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl flex flex-col items-center text-center gap-6 my-4 animate-in fade-in zoom-in duration-300" dir="rtl">
+        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl shadow-inner">
+          🎉
+        </div>
+
+        <div>
+          <h2 className="font-extrabold text-2xl sm:text-3xl text-[#041C36] font-['Cairo']">
+            تم استلام طلب الانضمام بنجاح!
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-2 max-w-md font-bold">
+            أهلاً بك يا <span className="text-[#143B67] font-black">{submittedNurse.name}</span> في عائلة نبض. تم حفظ بياناتك بالسجل وجاري مراجعة الترخيص.
+          </p>
+        </div>
+
+        {/* Status Card */}
+        <div className="w-full max-w-md bg-[#EBF3FA] rounded-2xl p-5 border border-slate-200 text-right flex flex-col gap-3">
+          <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+            <span className="text-xs font-bold text-slate-600">رقم الطلب (Nurse ID):</span>
+            <span className="font-mono font-black text-sm text-[#143B67] bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
+              {submittedNurse.jobCode}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+            <span className="text-xs font-bold text-slate-600">حالة الطلب:</span>
+            <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
+              <Clock size={12} /> قيد المراجعة (Pending)
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-600">التخصص والمنطقة:</span>
+            <span className="text-xs font-bold text-slate-800">{submittedNurse.specialty} · {submittedNurse.area}</span>
+          </div>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 text-right flex items-start gap-2.5 max-w-md">
+          <Info size={18} className="flex-shrink-0 text-amber-600 mt-0.5" />
+          <div>
+            <p className="font-extrabold mb-1">ما الخطوة القادمة؟</p>
+            <p className="text-[11px] leading-relaxed">
+              يقوم مسؤول المنظومة بمراجعة بيانات الترخيص والتأكد منها، ثم سيتم تفعيل حسابك وإرسال الإشعارات عبر الواتساب فور الاعتماد.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md mt-2">
+          <button
+            onClick={() => {
+              setSubmittedNurse(null);
+              setStep(1);
+            }}
+            className="carehub-btn-ghost py-3 text-xs flex-1"
+          >
+            تقديم طلب جديد
+          </button>
+          <button
+            onClick={onGoHome}
+            className="carehub-btn-primary py-3 text-xs font-bold flex-1"
+          >
+            العودة للرئيسية 🏠
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6 my-4" dir="rtl">
+      {/* Top Banner */}
+      <div className="bg-gradient-to-r from-[#041C36] via-[#0d2d55] to-[#143B67] text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-64 h-64 bg-[#E39019] opacity-10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-[#E39019] text-[#041C36] flex items-center justify-center font-black shadow-lg">
+              <UserCheck size={30} />
+            </div>
+            <div>
+              <h1 className="font-extrabold text-xl sm:text-2xl font-['Cairo'] text-white">انضم لفريقنا 👨‍⚕️</h1>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1">انضم إلى نخبة التمريض المنزلي بمحافظة دمياط واحصل على زيارات منظمة بدعم 24/7</p>
+            </div>
+          </div>
+          {onGoToAdminNurses && (
+            <button
+              onClick={onGoToAdminNurses}
+              className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-2xl border border-white/20 flex items-center gap-1.5 transition-all self-end sm:self-center"
+            >
+              <UserCog size={15} /> عرض سجل الممرضين بالإدارة
+            </button>
+          )}
+        </div>
+
+        {/* Step Indicator */}
+        <div className="grid grid-cols-3 gap-2 mt-6 pt-4 border-t border-white/15 text-center text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => setStep(1)}
+            className={`py-2 rounded-xl transition-all ${step === 1 ? "bg-[#E39019] text-[#041C36] shadow-md" : "bg-white/10 text-white"}`}
+          >
+            1. البيانات الشخصية
+          </button>
+          <button
+            type="button"
+            onClick={() => setStep(2)}
+            className={`py-2 rounded-xl transition-all ${step === 2 ? "bg-[#E39019] text-[#041C36] shadow-md" : "bg-white/10 text-white"}`}
+          >
+            2. البيانات المهنية
+          </button>
+          <button
+            type="button"
+            onClick={() => setStep(3)}
+            className={`py-2 rounded-xl transition-all ${step === 3 ? "bg-[#E39019] text-[#041C36] shadow-md" : "bg-white/10 text-white"}`}
+          >
+            3. المستندات والإرسال
+          </button>
+        </div>
+      </div>
+
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-xs font-bold flex items-center gap-2">
+          <AlertCircle size={18} className="flex-shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Main Form */}
+      <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-md flex flex-col gap-6">
+
+        {/* STEP 1: PERSONAL DATA */}
+        {step === 1 && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <h3 className="font-extrabold text-base text-[#041C36] border-b border-slate-100 pb-3 flex items-center gap-2 font-['Cairo']">
+              <User size={18} className="text-[#E39019]" /> 1. البيانات الشخصية للممرض / الممرضة
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="font-bold text-slate-700">الاسم الرباعي بالكامل *</label>
+                <input
+                  required
+                  className="nabd-input text-xs font-bold"
+                  placeholder="مثال: أحمد محمد علي إبراهيم"
+                  value={form.name}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">رقم الهاتف الأساسي *</label>
+                <input
+                  required
+                  className="nabd-input text-xs font-bold"
+                  placeholder="010XXXXXXXX"
+                  value={form.phone}
+                  onChange={e => setForm({ ...form, phone: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">رقم الواتساب *</label>
+                <input
+                  required
+                  className="nabd-input text-xs font-bold"
+                  placeholder="010XXXXXXXX"
+                  value={form.whatsapp}
+                  onChange={e => setForm({ ...form, whatsapp: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">البريد الإلكتروني (اختياري)</label>
+                <input
+                  type="email"
+                  className="nabd-input text-xs"
+                  placeholder="example@mail.com"
+                  value={form.email}
+                  onChange={e => setForm({ ...form, email: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">تاريخ الميلاد *</label>
+                <input
+                  type="date"
+                  required
+                  className="nabd-input text-xs"
+                  value={form.dob}
+                  onChange={e => setForm({ ...form, dob: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">النوع *</label>
+                <select
+                  className="nabd-input text-xs font-bold"
+                  value={form.gender}
+                  onChange={e => setForm({ ...form, gender: e.target.value })}
+                >
+                  <option value="ذكر">ذكر</option>
+                  <option value="أنثى">أنثى</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">المحافظة *</label>
+                <select
+                  className="nabd-input text-xs font-bold"
+                  value={form.governorate}
+                  onChange={e => setForm({ ...form, governorate: e.target.value })}
+                >
+                  <option value="دمياط">دمياط</option>
+                  <option value="الدقهلية">الدقهلية</option>
+                  <option value="بورسعيد">بورسعيد</option>
+                  <option value="محافظة أخرى">محافظة أخرى</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">المدينة / المنطقة الرئيسية *</label>
+                <select
+                  className="nabd-input text-xs font-bold"
+                  value={form.area}
+                  onChange={e => setForm({ ...form, area: e.target.value })}
+                >
+                  {DAMIETTA_AREAS.map(a => (
+                    <option key={a.name} value={a.name}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="font-bold text-slate-700">العنوان التفصيلي</label>
+                <input
+                  className="nabd-input text-xs"
+                  placeholder="الشارع، العمارة، العلامة المميزة..."
+                  value={form.address}
+                  onChange={e => setForm({ ...form, address: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!form.name.trim() || !form.phone.trim()) {
+                    if (onNotify) onNotify("❌ يرجى كتابة الاسم والهاتف للانتقال");
+                    return;
+                  }
+                  setStep(2);
+                }}
+                className="carehub-btn-primary text-xs font-bold px-6 py-3"
+              >
+                التالي: البيانات المهنية ➔
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: PROFESSIONAL DATA */}
+        {step === 2 && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <h3 className="font-extrabold text-base text-[#041C36] border-b border-slate-100 pb-3 flex items-center gap-2 font-['Cairo']">
+              <GraduationCap size={18} className="text-[#E39019]" /> 2. البيانات المهنية والترخيص
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">رقم ترخيص مزاولة المهنة *</label>
+                <input
+                  required
+                  className="nabd-input text-xs font-bold"
+                  placeholder="مثال: 123456 / ترخيص مزاولة"
+                  value={form.license}
+                  onChange={e => setForm({ ...form, license: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">جهة إصدار الترخيص</label>
+                <input
+                  className="nabd-input text-xs"
+                  placeholder="وزارة الصحة المصرية / النقابة"
+                  value={form.licenseBody}
+                  onChange={e => setForm({ ...form, licenseBody: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">المؤهل العلمي *</label>
+                <select
+                  className="nabd-input text-xs font-bold"
+                  value={form.degree}
+                  onChange={e => setForm({ ...form, degree: e.target.value })}
+                >
+                  <option>بكالوريوس تمريض</option>
+                  <option>معهد تمريض فني</option>
+                  <option>دبلوم تمريض</option>
+                  <option>ماجستير / دكتوراه تمريض</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">سنة التخرج</label>
+                <input
+                  type="number"
+                  min="1980"
+                  max="2026"
+                  className="nabd-input text-xs"
+                  value={form.gradYear}
+                  onChange={e => setForm({ ...form, gradYear: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">التخصص الرئيسي *</label>
+                <input
+                  required
+                  className="nabd-input text-xs font-bold"
+                  placeholder="تمريض عام / عناية مركزة / أطفال..."
+                  value={form.specialty}
+                  onChange={e => setForm({ ...form, specialty: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">سنوات الخبرة *</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="40"
+                  className="nabd-input text-xs font-bold"
+                  value={form.exp}
+                  onChange={e => setForm({ ...form, exp: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="font-bold text-slate-700">أماكن العمل السابقة أو الحالية</label>
+                <input
+                  className="nabd-input text-xs"
+                  placeholder="مستشفى عام، مركز طبي، عيادات..."
+                  value={form.previousWork}
+                  onChange={e => setForm({ ...form, previousWork: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="font-bold text-slate-700">الدورات والشهادات الإضافية</label>
+                <input
+                  className="nabd-input text-xs"
+                  placeholder="إنعاش قلبي BLS، دورات جروح، رعاية مركزة..."
+                  value={form.certifications}
+                  onChange={e => setForm({ ...form, certifications: e.target.value })}
+                />
+              </div>
+
+              {/* Services Offered */}
+              <div className="flex flex-col gap-2 sm:col-span-2 pt-2 border-t border-slate-100">
+                <label className="font-bold text-slate-700">الخدمات التي تستطيع تقديمها كـ ممرض/ة:</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {availableServicesList.map(srv => {
+                    const checked = form.servicesOffered.includes(srv);
+                    return (
+                      <div
+                        key={srv}
+                        onClick={() => toggleService(srv)}
+                        className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                          checked ? "bg-[#EBF3FA] border-[#143B67] text-[#143B67]" : "bg-slate-50 border-slate-200 text-slate-600"
+                        }`}
+                      >
+                        <input type="checkbox" checked={checked} readOnly className="accent-[#143B67]" />
+                        <span>{srv}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Coverage Areas */}
+              <div className="flex flex-col gap-2 sm:col-span-2 pt-2 border-t border-slate-100">
+                <label className="font-bold text-slate-700">المناطق المتاح التغطية بها:</label>
+                <div className="flex flex-wrap gap-2">
+                  {DAMIETTA_AREAS.map(a => {
+                    const checked = form.coverageAreas.includes(a.name);
+                    return (
+                      <button
+                        type="button"
+                        key={a.name}
+                        onClick={() => toggleArea(a.name)}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
+                          checked ? "bg-[#143B67] text-white border-[#143B67]" : "bg-slate-100 text-slate-600 border-slate-200"
+                        }`}
+                      >
+                        {checked ? "✓ " : "+ "}{a.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between pt-4">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="carehub-btn-ghost text-xs px-5 py-3"
+              >
+                ➔ السابق
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="carehub-btn-primary text-xs font-bold px-6 py-3"
+              >
+                التالي: المستندات والإرسال ➔
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: DOCUMENTS & SUBMIT */}
+        {step === 3 && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <h3 className="font-extrabold text-base text-[#041C36] border-b border-slate-100 pb-3 flex items-center gap-2 font-['Cairo']">
+              <FileCheck size={18} className="text-[#E39019]" /> 3. إرفاق المستندات وتأكيد الطلب
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              {[
+                ["nationalIdPhoto", "صورة بطاقة الرقم القومي (الوجهين)"],
+                ["licensePhoto", "صورة ترخيص مزاولة المهنة"],
+                ["degreePhoto", "صورة شهادة المؤهل العلمي"],
+                ["personalPhoto", "صورة شخصية حديثة (للملف المعتمد)"]
+              ].map(([key, label]) => (
+                <div key={key} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col gap-1.5">
+                  <label className="font-bold text-slate-700">{label}</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setForm(prev => ({ ...prev, [key]: file.name }));
+                        if (onNotify) onNotify(`📄 تم إرفاق ${file.name}`);
+                      }
+                    }}
+                    className="text-[11px] text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#143B67] file:text-white"
+                  />
+                  {form[key] && <p className="text-[10px] text-emerald-700 font-bold">✔ تم إرفاق: {form[key]}</p>}
+                </div>
+              ))}
+            </div>
+
+            {/* Summary Preview */}
+            <div className="bg-[#EBF3FA] p-4 rounded-2xl border border-slate-200 text-xs text-slate-700 flex flex-col gap-1.5 mt-2">
+              <p className="font-extrabold text-[#041C36]">ملخص الطلب قبل الإرسال:</p>
+              <p>👤 الاسم: <strong>{form.name || "—"}</strong> | 📞 الهاتف: <strong>{form.phone || "—"}</strong></p>
+              <p>📍 المنطقة: <strong>{form.area}</strong> | 🎓 المؤهل: <strong>{form.degree}</strong></p>
+              <p>📋 رقم الترخيص: <strong>{form.license || "—"}</strong></p>
+            </div>
+
+            <div className="flex justify-between pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="carehub-btn-ghost text-xs px-5 py-3"
+              >
+                ➔ السابق
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="carehub-btn-wa text-xs font-bold px-8 py-3.5 shadow-lg flex items-center justify-center gap-2 min-h-[44px]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={16} className="carehub-spin" /> جاري حفظ البيانات بـ Google Sheets والإرسال...
+                  </>
+                ) : (
+                  <>
+                    <UserCheck size={18} /> إرسال طلب الانضمام وتأكيد الواتساب 🚀
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </form>
+    </div>
+  );
+}
+
 /* ============================== MODAL: ADD PATIENT FORM ============================== */
 
 function AddPatientModal({ onClose, onSave, onNotify }) {
@@ -2554,8 +3219,13 @@ export default function App() {
 
   const registerNurse = async (data) => {
     const n = data.id ? data : { id: uid("nur"), photo: `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=143B67&color=fff&size=128&bold=true`, coord: areaCoord(data.area), ...data };
-    setNurses((prev) => [...prev, n]);
-    await apiMutate("create", "nurses", n.id, n);
+    setNurses((prev) => [n, ...prev]);
+    try {
+      await apiMutate("create", "nurses", n.id, n);
+    } catch (e) {
+      console.warn("API mutate background note:", e);
+    }
+    return n;
   };
 
   const deletePatient = async (id) => {
