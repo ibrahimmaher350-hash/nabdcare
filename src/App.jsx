@@ -2183,13 +2183,16 @@ function BookingWizardView({ patients, nurses, bookings, onCreatePatient, onCrea
     
     try {
       const payload = {
-        type: "patient",
+        patientId: "",
         name: wiz.patientName,
         phone: wiz.phone,
         whatsapp: wiz.phone,
         address: wiz.area + (wiz.addressDetail ? " - " + wiz.addressDetail : ""),
         service: selectedService.name,
         notes: "الموعد: " + wiz.date + " " + wiz.time,
+        bookingDate: wiz.date + " " + wiz.time,
+        status: "confirmed",
+        password: ""
       };
 
       const response = await fetch("https://script.google.com/macros/s/AKfycbyOwjexAqUzIoiy19_pnNx1Ps4zQgNOqhy51rv4jpHeECQjbMBQOhuV5yrX3w23hlKVTg/exec", {
@@ -2382,43 +2385,28 @@ function BookingWizardView({ patients, nurses, bookings, onCreatePatient, onCrea
       )}
 
       {step === 3 && (
-        <div className="text-center flex flex-col items-center gap-4 py-6">
-          <div className="w-16 h-16 bg-[#10B981]/10 text-[#10B981] rounded-full flex items-center justify-center mb-2 shadow-inner">
-            <CheckCircle size={40} />
-          </div>
-          <h3 className="font-extrabold text-xl text-slate-900 font-['Cairo']">تم الحجز بنجاح!</h3>
+        <div className="text-center flex flex-col items-center gap-3 py-4">
+          <CheckCircle size={48} className="text-[#10B981]" />
+          <h3 className="font-extrabold text-lg text-slate-900 font-['Cairo']">تم الحجز بنجاح!</h3>
           
-          <div className="bg-[#F8FAFC] border border-slate-200 rounded-2xl p-5 w-full max-w-sm mt-2 text-right">
-            <p className="text-sm font-bold text-[#041C36] mb-3 border-b border-slate-200 pb-2">بيانات حساب المريض الخاص بك:</p>
-            <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm">
-              <span className="text-xs text-slate-500 font-bold">رقم المريض (ID)</span>
-              <span className="font-black text-[#143B67] text-sm font-mono" dir="ltr">{result?.patientId || "N/A"}</span>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 w-full max-w-xs text-right my-2">
+            <p className="text-sm font-bold text-slate-700 mb-2">بيانات حساب المريض:</p>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs text-slate-500">رقم المريض:</span>
+              <span className="font-bold text-[#143B67]" dir="ltr">{result?.patientId || "N/A"}</span>
             </div>
-            <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-              <span className="text-xs text-slate-500 font-bold">كلمة المرور (Password)</span>
-              <span className="font-black text-[#E39019] text-sm font-mono" dir="ltr">{result?.password || "N/A"}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-slate-500">كلمة المرور:</span>
+              <span className="font-bold text-[#E39019]" dir="ltr">{result?.password || "N/A"}</span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-3 text-center leading-relaxed font-semibold">يرجى الاحتفاظ بهذه البيانات بشكل آمن لتسجيل الدخول لاحقاً ومتابعة ملفك الطبي وتقارير الزيارات.</p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm mt-4">
-            <button onClick={() => {
-              const url = `${window.location.origin}${window.location.pathname}#booking`;
-              const text = `🏥 احجز زيارة تمريضية منزلية الآن مع نبض دمياط!\n${url}\nللتواصل: ${BRAND.phone}`;
-              window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-            }} className="carehub-btn-wa text-xs py-3 font-bold flex-1 flex items-center justify-center gap-2">
-              <Share2 size={16} /> مشاركة للحجز
+          <div className="flex flex-col gap-2 w-full max-w-xs">
+            <button onClick={onGoToAppointments} className="carehub-btn-wa text-xs py-2.5 font-bold">
+              📋 عرض سِجل الحجوزات في الإدارة
             </button>
-            <button onClick={() => {
-              setWiz({
-                ...wiz,
-                patientName: "",
-                phone: BRAND.phone,
-                addressDetail: ""
-              });
-              setStep(1);
-            }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs py-3 rounded-xl font-bold flex-1 transition-colors border border-slate-200">
-              حجز جديد
+            <button onClick={() => { window.location.hash="#admin"; }} className="carehub-btn-primary text-xs py-2.5 font-bold">
+              👥 عرض ملف المريض في الإدارة
             </button>
           </div>
         </div>
