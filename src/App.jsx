@@ -2118,28 +2118,124 @@ function BookingWizardView({
   initialServiceId,
   onGoToAppointments
 }) {
+  const [step, setStep] = useState(1);
   const [submittedBooking, setSubmittedBooking] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [showPatientRecordModal, setShowPatientRecordModal] = useState(false);
 
-  // Form state
+  // GPS state
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationStatus, setLocationStatus] = useState("");
+
+  // Form State
   const [form, setForm] = useState({
+    // Step 1: Contact & Visit Reason
     name: "",
     phone: "",
+    sameWhatsapp: true,
     whatsapp: "",
+    visitReason: "تركيب كانيولا ومحاليل",
+    otherReason: "",
+    serviceId: initialServiceId || FLAT_SERVICES[0].id,
+
+    // Step 2: Medical History & Status
+    chronicDiseases: [],
+    otherChronic: "",
+    hasAllergies: "لا",
+    allergiesDetail: "",
+    hasMeds: "لا",
+    medsDetail: "",
+    isBedridden: "لا",
+    needsCompanion: "لا",
+    medicalNotes: "",
+
+    // Step 3: Schedule, Location & GPS
+    date: todayStr(),
+    time: "10:00",
     area: DAMIETTA_AREAS[0].name,
     addressDetail: "",
     landmark: "",
-    serviceId: initialServiceId || FLAT_SERVICES[0].id,
-    date: todayStr(),
-    time: "10:00",
-    notes: "",
-    guardianName: "",
-    guardianPhone: "",
+    lat: null,
+    lng: null,
+    googleMapsUrl: "",
   });
 
   const selectedService = FLAT_SERVICES.find(s => s.id === form.serviceId) || FLAT_SERVICES[0];
+
+  const visitReasonsList = [
+    "تركيب كانيولا ومحاليل",
+    "غيار جرح معقم",
+    "سحب عينات تحاليل",
+    "إعطاء حقنة عضل/وريد",
+    "متابعة علامات حيوية",
+    "تركيب/تغيير قسطرة بولية",
+    "رعاية مسن وحالات مزمنة",
+    "تركيب أنبوب تغذية (رايل)",
+    "أخرى"
+  ];
+
+  const chronicList = [
+    "سكري",
+    "ضغط",
+    "أمراض قلب",
+    "أمراض كلى",
+    "أمراض كبد",
+    "جلطة",
+    "سرطان",
+    "أمراض صدر",
+    "أخرى"
+  ];
+
+  const toggleChronic = (item) => {
+    setForm(prev => {
+      const exists = prev.chronicDiseases.includes(item);
+      return {
+        ...prev,
+        chronicDiseases: exists
+          ? prev.chronicDiseases.filter(c => c !== item)
+          : [...prev.chronicDiseases, item]
+      };
+    });
+  };
+
+  // Get GPS Location
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      if (onNotify) onNotify("⚠️ تحديد الموقع الجغرافي غير مدعوم في متصفحك");
+      setLocationStatus("تحديد الموقع غير مدعوم في هذا المتصفح.");
+      return;
+    }
+
+    setIsLocating(true);
+    setLocationStatus("جاري تحديد موقعك الجغرافي من الـ GPS...");
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const latitude = pos.coords.latitude;
+        const longitude = pos.coords.longitude;
+        const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+
+        setForm(prev => ({
+          ...prev,
+          lat: latitude,
+          lng: longitude,
+          googleMapsUrl: mapsUrl,
+        }));
+
+        setIsLocating(false);
+        setLocationStatus("✅ تم تحديد موقعك الدقيق بنجاح!");
+        if (onNotify) onNotify("📍 تم تحديد موقعك بنجاح وحفظ رابط الخريطة!");
+      },
+      (err) => {
+        console.error("GPS Error:", err);
+        setIsLocating(false);
+        setLocationStatus("⚠️ تعذر تحديد الموقع تلقائياً. يمكنك كتابة العنوان يدوياً.");
+        if (onNotify) onNotify("⚠️ تعذر الحصول على الإحداثيات - يرجى السماح للـ GPS");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -2147,20 +2243,27 @@ function BookingWizardView({
 
     if (!form.name.trim() || form.name.trim().length < 2) {
       if (onNotify) onNotify("❌ يرجى إدخال اسم المريض بالكامل");
+      setStep(1);
       return;
     }
     if (!form.phone.trim() || form.phone.trim().length < 10) {
       if (onNotify) onNotify("❌ يرجى إدخال رقم هاتف صحيح");
+      setStep(1);
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // 1. Generate Patient Code & PIN
       const patientCode = generatePatientCode();
       const patientPin = generatePatientPin();
       const bookingId = `BK-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+      const actualWhatsapp = form.sameWhatsapp ? form.phone.trim() : (form.whatsapp.trim() || form.phone.trim());
+
+      const finalChronic = [...form.chronicDiseases];
+      if (form.otherChronic.trim()) finalChronic.push(`أخرى: ${form.otherChronic.trim()}`);
+
+      const finalReason = form.visitReason === "أخرى" ? `أخرى: ${form.otherReason.trim()}` : form.visitReason;
 
       const newBookingObj = {
         id: bookingId,
@@ -2168,21 +2271,30 @@ function BookingWizardView({
         patientPin: patientPin,
         patientName: form.name.trim(),
         phone: form.phone.trim(),
-        whatsapp: (form.whatsapp || form.phone).trim(),
+        whatsapp: actualWhatsapp,
         serviceId: form.serviceId,
         serviceName: selectedService.name,
+        visitReason: finalReason,
         area: form.area,
         addressDetail: form.addressDetail.trim() || "غير محدد",
         landmark: form.landmark.trim() || "—",
         date: form.date,
         time: form.time,
-        notes: form.notes.trim() || "لا يوجد",
+        notes: form.medicalNotes.trim() || "لا يوجد",
         status: "confirmed", // تم استلام الطلب
         nurseName: "ممرض/ إبراهيم ماهر",
+        lat: form.lat,
+        lng: form.lng,
+        googleMapsUrl: form.googleMapsUrl || (form.lat ? `https://www.google.com/maps?q=${form.lat},${form.lng}` : ""),
+        chronicSummary: finalChronic.join("، "),
+        hasAllergies: form.hasAllergies === "نعم" ? `نعم (${form.allergiesDetail})` : "لا",
+        hasMeds: form.hasMeds === "نعم" ? `نعم (${form.medsDetail})` : "لا",
+        isBedridden: form.isBedridden,
+        needsCompanion: form.needsCompanion,
         createdAt: Date.now(),
       };
 
-      // 2. Save Booking to Google Sheets API & Local State
+      // 1. Save Booking to Google Sheets API & Local State
       if (onCreateBookings) {
         await onCreateBookings([newBookingObj]);
       }
@@ -2195,26 +2307,26 @@ function BookingWizardView({
           pin: patientPin,
           name: form.name.trim(),
           phone: form.phone.trim(),
-          whatsapp: (form.whatsapp || form.phone).trim(),
+          whatsapp: actualWhatsapp,
           area: form.area,
           addressDetail: form.addressDetail.trim(),
           healthStatus: "متابعة منزلية",
-          requestReason: selectedService.name,
-          chronicSummary: ["متابعة زيارة منزلية"],
-          allergies: [],
-          medications: "حسب التقييم بالمنزل",
+          requestReason: finalReason,
+          chronicSummary: finalChronic,
+          allergies: form.hasAllergies === "نعم" ? [form.allergiesDetail] : [],
+          medications: form.hasMeds === "نعم" ? form.medsDetail : "لا يوجد",
           balance: "0 ج.م",
           createdAt: Date.now(),
         });
       }
 
-      // 3. Send WhatsApp Alert to Admin
+      // 2. Send WhatsApp Alert to Admin with Google Maps Link
       sendWhatsAppNotification(
         "📅 حجز زيارة منزلية جديدة",
-        `المريض: ${newBookingObj.patientName} | الكود: ${patientCode} | الخدمة: ${selectedService.name} | المنطقة: ${form.area} | الموعد: ${form.date} الساعة ${form.time}`
+        `المريض: ${newBookingObj.patientName} | الكود: ${patientCode} | السبب: ${finalReason} | المنطقة: ${form.area} | الموعد: ${form.date} الساعة ${form.time} | الخريطة: ${newBookingObj.googleMapsUrl || "غير متاح"}`
       );
 
-      // 4. Send WhatsApp Confirmation to Patient
+      // 3. Send WhatsApp Confirmation to Patient
       const patientMsg = `مرحباً ${newBookingObj.patientName} 👋
 تم استلام طلب حجزك لـ (${selectedService.name}) بنجاح.
 
@@ -2222,6 +2334,7 @@ function BookingWizardView({
 🔑 كلمة المرور (PIN): ${patientPin}
 📅 الموعد: ${form.date} الساعة ${form.time}
 📍 العنوان: ${form.area} - ${newBookingObj.addressDetail}
+📌 سبب الزيارة: ${finalReason}
 📌 حالة الطلب: تم استلام الطلب (مؤكد) ⏳
 
 سيتم التواصل معك فوراً لتأكيد وصول طاقم التمريض بالموعد المحجوز. شكراً لثقتكم بنبض! 🩺`;
@@ -2258,7 +2371,7 @@ function BookingWizardView({
         </div>
 
         {/* Detailed Booking Summary */}
-        <div className="w-full max-w-lg bg-[#EBF3FA] rounded-2xl p-5 border border-slate-200 text-right flex flex-col gap-3.5 text-xs">
+        <div className="w-full max-w-lg bg-[#EBF3FA] rounded-2xl p-5 border border-slate-200 text-right flex flex-col gap-3 text-xs">
           <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
             <span className="font-bold text-slate-600">رقم المريض (Patient ID):</span>
             <span className="font-mono font-black text-sm text-[#143B67] bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
@@ -2273,16 +2386,32 @@ function BookingWizardView({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
             <p>👤 الاسم: <strong>{submittedBooking.patientName}</strong></p>
             <p>📞 رقم الهاتف: <strong>{submittedBooking.phone}</strong></p>
-            <p>📱 رقم الواتساب: <strong>{submittedBooking.whatsapp}</strong></p>
-            <p>🩺 الخدمة المطلوبة: <strong>{submittedBooking.serviceName}</strong></p>
+            <p>📱 الواتساب: <strong>{submittedBooking.whatsapp}</strong></p>
+            <p>🩺 الخدمة: <strong>{submittedBooking.serviceName}</strong></p>
+            <p className="col-span-2">📌 سبب الزيارة: <strong>{submittedBooking.visitReason}</strong></p>
             <p>📍 المنطقة: <strong>{submittedBooking.area}</strong></p>
             <p>🏢 العنوان: <strong>{submittedBooking.addressDetail}</strong></p>
             <p>📅 التاريخ: <strong>{submittedBooking.date}</strong></p>
             <p>⏰ الوقت: <strong>{submittedBooking.time}</strong></p>
+            {submittedBooking.chronicSummary && <p className="col-span-2">🏥 الأوضاع الصحية: {submittedBooking.chronicSummary}</p>}
           </div>
+
+          {submittedBooking.googleMapsUrl && (
+            <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between">
+              <span className="font-bold text-slate-600">موقع الخريطة:</span>
+              <a
+                href={submittedBooking.googleMapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="bg-[#E39019] text-[#041C36] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 text-[11px]"
+              >
+                <MapPin size={13} /> فتح الموقع في Google Maps 📍
+              </a>
+            </div>
+          )}
 
           <div className="flex items-center justify-between border-t border-slate-200/80 pt-3">
             <span className="font-bold text-slate-600">حالة الطلب:</span>
@@ -2303,6 +2432,7 @@ function BookingWizardView({
           <button
             onClick={() => {
               setSubmittedBooking(null);
+              setStep(1);
             }}
             className="carehub-btn-ghost py-3.5 text-xs font-bold flex-1"
           >
@@ -2325,7 +2455,7 @@ function BookingWizardView({
   // WIZARD FORM
   return (
     <div className="flex flex-col gap-6 my-4" dir="rtl">
-      {/* Header */}
+      {/* Header Banner */}
       <div className="bg-gradient-to-r from-[#041C36] via-[#0d2d55] to-[#143B67] text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-64 h-64 bg-[#E39019] opacity-10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex items-center gap-3">
@@ -2334,8 +2464,40 @@ function BookingWizardView({
           </div>
           <div>
             <h1 className="font-extrabold text-xl sm:text-2xl font-['Cairo'] text-white">حجز زيارة تمريضية منزلية 🩺</h1>
-            <p className="text-xs sm:text-sm text-slate-300 mt-1">احجز ممرض متخصص للزيارة المنزلية بدمياط مع مزامنة فورية في Google Sheets</p>
+            <p className="text-xs sm:text-sm text-slate-300 mt-1">احجز ممرض متخصص للزيارة المنزلية بدمياط مع مزامنة فورية بـ Google Sheets و GPS</p>
           </div>
+        </div>
+
+        {/* Step Indicator */}
+        <div className="grid grid-cols-4 gap-1.5 mt-6 pt-4 border-t border-white/15 text-center text-[11px] font-bold">
+          <button
+            type="button"
+            onClick={() => setStep(1)}
+            className={`py-2 rounded-xl transition-all ${step === 1 ? "bg-[#E39019] text-[#041C36] shadow-md" : "bg-white/10 text-white"}`}
+          >
+            1. التواصل والسبب
+          </button>
+          <button
+            type="button"
+            onClick={() => setStep(2)}
+            className={`py-2 rounded-xl transition-all ${step === 2 ? "bg-[#E39019] text-[#041C36] shadow-md" : "bg-white/10 text-white"}`}
+          >
+            2. التاريخ المرضي
+          </button>
+          <button
+            type="button"
+            onClick={() => setStep(3)}
+            className={`py-2 rounded-xl transition-all ${step === 3 ? "bg-[#E39019] text-[#041C36] shadow-md" : "bg-white/10 text-white"}`}
+          >
+            3. الموعد والموقع
+          </button>
+          <button
+            type="button"
+            onClick={() => setStep(4)}
+            className={`py-2 rounded-xl transition-all ${step === 4 ? "bg-[#E39019] text-[#041C36] shadow-md" : "bg-white/10 text-white"}`}
+          >
+            4. التأكيد والإرسال
+          </button>
         </div>
       </div>
 
@@ -2346,144 +2508,454 @@ function BookingWizardView({
         </div>
       )}
 
-      {/* Main Form */}
+      {/* Main Multi-step Form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-md flex flex-col gap-6">
-        <h3 className="font-extrabold text-base text-[#041C36] border-b border-slate-100 pb-3 flex items-center gap-2 font-['Cairo']">
-          <User size={18} className="text-[#E39019]" /> بيانات المريض وحجز الزيارة
-        </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          <div className="flex flex-col gap-1 sm:col-span-2">
-            <label className="font-bold text-slate-700">اسم المريض بالكامل *</label>
-            <input
-              required
-              className="nabd-input text-xs font-bold"
-              placeholder="مثال: محمد أحمد السيد"
-              value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
-            />
+        {/* STEP 1: CONTACT & VISIT REASON */}
+        {step === 1 && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <h3 className="font-extrabold text-base text-[#041C36] border-b border-slate-100 pb-3 flex items-center gap-2 font-['Cairo']">
+              <User size={18} className="text-[#E39019]" /> 1. بيانات المريض وسبب طلب الزيارة
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="font-bold text-slate-700">اسم المريض بالكامل *</label>
+                <input
+                  required
+                  className="nabd-input text-xs font-bold"
+                  placeholder="مثال: محمد أحمد السيد"
+                  value={form.name}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">رقم الهاتف الأساسي *</label>
+                <input
+                  required
+                  className="nabd-input text-xs font-bold"
+                  placeholder="010XXXXXXXX"
+                  value={form.phone}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setForm(prev => ({
+                      ...prev,
+                      phone: val,
+                      whatsapp: prev.sameWhatsapp ? val : prev.whatsapp
+                    }));
+                  }}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-700">رقم الواتساب *</label>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-[#143B67] font-bold">
+                    <input
+                      type="checkbox"
+                      checked={form.sameWhatsapp}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        setForm(prev => ({
+                          ...prev,
+                          sameWhatsapp: checked,
+                          whatsapp: checked ? prev.phone : prev.whatsapp
+                        }));
+                      }}
+                      className="accent-[#143B67]"
+                    />
+                    نفس رقم الهاتف
+                  </label>
+                </div>
+                <input
+                  required
+                  disabled={form.sameWhatsapp}
+                  className={`nabd-input text-xs font-bold ${form.sameWhatsapp ? "bg-slate-100 text-slate-500" : ""}`}
+                  placeholder="010XXXXXXXX"
+                  value={form.sameWhatsapp ? form.phone : form.whatsapp}
+                  onChange={e => setForm({ ...form, whatsapp: e.target.value })}
+                />
+              </div>
+
+              {/* Primary Visit Reason Chips */}
+              <div className="flex flex-col gap-2 sm:col-span-2 pt-2 border-t border-slate-100">
+                <label className="font-bold text-slate-700">سبب طلب الزيارة التمريضية الرئيسي: *</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {visitReasonsList.map(r => {
+                    const active = form.visitReason === r;
+                    return (
+                      <button
+                        type="button"
+                        key={r}
+                        onClick={() => setForm({ ...form, visitReason: r })}
+                        className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between text-right transition-all ${
+                          active ? "bg-[#143B67] text-white border-[#143B67] shadow-sm" : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        <span>{r}</span>
+                        {active && <Check size={14} className="text-[#E39019]" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                {form.visitReason === "أخرى" && (
+                  <input
+                    className="nabd-input text-xs mt-2"
+                    placeholder="اكتب السبب بالتفصيل..."
+                    value={form.otherReason}
+                    onChange={e => setForm({ ...form, otherReason: e.target.value })}
+                  />
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="font-bold text-slate-700">تصنيف الخدمة المطلوبة *</label>
+                <select
+                  className="nabd-input text-xs font-bold"
+                  value={form.serviceId}
+                  onChange={e => setForm({ ...form, serviceId: e.target.value })}
+                >
+                  {FLAT_SERVICES.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!form.name.trim() || !form.phone.trim()) {
+                    if (onNotify) onNotify("❌ يرجى إدخال اسم المريض ورقم الهاتف");
+                    return;
+                  }
+                  setStep(2);
+                }}
+                className="carehub-btn-primary text-xs font-bold px-6 py-3"
+              >
+                التالي: التاريخ المرضي ➔
+              </button>
+            </div>
           </div>
+        )}
 
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-slate-700">رقم الهاتف الأساسي *</label>
-            <input
-              required
-              className="nabd-input text-xs font-bold"
-              placeholder="010XXXXXXXX"
-              value={form.phone}
-              onChange={e => setForm({ ...form, phone: e.target.value })}
-            />
+        {/* STEP 2: MEDICAL HISTORY */}
+        {step === 2 && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <h3 className="font-extrabold text-base text-[#041C36] border-b border-slate-100 pb-3 flex items-center gap-2 font-['Cairo']">
+              <Activity size={18} className="text-[#E39019]" /> 2. التاريخ المرضي والحالة الصحية للمريض
+            </h3>
+
+            <div className="flex flex-col gap-4 text-xs">
+              {/* Chronic Diseases Checkboxes */}
+              <div className="flex flex-col gap-2">
+                <label className="font-bold text-slate-700">هل يعاني المريض من أي أمراض مزمنة؟ (حدد جميع ما ينطبق):</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {chronicList.map(c => {
+                    const checked = form.chronicDiseases.includes(c);
+                    return (
+                      <div
+                        key={c}
+                        onClick={() => toggleChronic(c)}
+                        className={`p-2.5 rounded-xl border font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                          checked ? "bg-[#EBF3FA] border-[#143B67] text-[#143B67]" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        <input type="checkbox" checked={checked} readOnly className="accent-[#143B67]" />
+                        <span>{c}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {form.chronicDiseases.includes("أخرى") && (
+                  <input
+                    className="nabd-input text-xs mt-1"
+                    placeholder="اذكر الأمراض المزمنة الأخرى..."
+                    value={form.otherChronic}
+                    onChange={e => setForm({ ...form, otherChronic: e.target.value })}
+                  />
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                {/* Allergies */}
+                <div className="flex flex-col gap-1.5 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <label className="font-bold text-slate-700">هل توجد حساسية من أدوية أو أطعمة؟</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-1 font-bold cursor-pointer"><input type="radio" name="allergies" value="نعم" checked={form.hasAllergies === "نعم"} onChange={e => setForm({ ...form, hasAllergies: e.target.value })} /> نعم</label>
+                    <label className="flex items-center gap-1 font-bold cursor-pointer"><input type="radio" name="allergies" value="لا" checked={form.hasAllergies === "لا"} onChange={e => setForm({ ...form, hasAllergies: e.target.value })} /> لا</label>
+                  </div>
+                  {form.hasAllergies === "نعم" && (
+                    <input
+                      className="nabd-input text-xs mt-1"
+                      placeholder="مثل: حساسية البنسلين، أطعمة..."
+                      value={form.allergiesDetail}
+                      onChange={e => setForm({ ...form, allergiesDetail: e.target.value })}
+                    />
+                  )}
+                </div>
+
+                {/* Continuous Meds */}
+                <div className="flex flex-col gap-1.5 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <label className="font-bold text-slate-700">هل يتناول أدوية بصفة مستمرة؟</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-1 font-bold cursor-pointer"><input type="radio" name="meds" value="نعم" checked={form.hasMeds === "نعم"} onChange={e => setForm({ ...form, hasMeds: e.target.value })} /> نعم</label>
+                    <label className="flex items-center gap-1 font-bold cursor-pointer"><input type="radio" name="meds" value="لا" checked={form.hasMeds === "لا"} onChange={e => setForm({ ...form, hasMeds: e.target.value })} /> لا</label>
+                  </div>
+                  {form.hasMeds === "نعم" && (
+                    <input
+                      className="nabd-input text-xs mt-1"
+                      placeholder="مثل: أدوية الضغط، انسولين، مسيلات..."
+                      value={form.medsDetail}
+                      onChange={e => setForm({ ...form, medsDetail: e.target.value })}
+                    />
+                  )}
+                </div>
+
+                {/* Bedridden */}
+                <div className="flex flex-col gap-1.5 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <label className="font-bold text-slate-700">هل المريض طريح الفراش؟</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-1 font-bold cursor-pointer"><input type="radio" name="bedridden" value="نعم" checked={form.isBedridden === "نعم"} onChange={e => setForm({ ...form, isBedridden: e.target.value })} /> نعم</label>
+                    <label className="flex items-center gap-1 font-bold cursor-pointer"><input type="radio" name="bedridden" value="لا" checked={form.isBedridden === "لا"} onChange={e => setForm({ ...form, isBedridden: e.target.value })} /> لا</label>
+                  </div>
+                </div>
+
+                {/* Needs Companion */}
+                <div className="flex flex-col gap-1.5 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <label className="font-bold text-slate-700">هل يحتاج إلى مرافق أثناء الزيارة؟</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-1 font-bold cursor-pointer"><input type="radio" name="companion" value="نعم" checked={form.needsCompanion === "نعم"} onChange={e => setForm({ ...form, needsCompanion: e.target.value })} /> نعم</label>
+                    <label className="flex items-center gap-1 font-bold cursor-pointer"><input type="radio" name="companion" value="لا" checked={form.needsCompanion === "لا"} onChange={e => setForm({ ...form, needsCompanion: e.target.value })} /> لا</label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1 sm:col-span-2 pt-1">
+                <label className="font-bold text-slate-700">ملاحظات طبية إضافية للممرض</label>
+                <textarea
+                  className="nabd-input text-xs resize-none h-16"
+                  placeholder="أي تعليمات أو ملاحظات طبية تود إبلاغ الممرض بها..."
+                  value={form.medicalNotes}
+                  onChange={e => setForm({ ...form, medicalNotes: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-between pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="carehub-btn-ghost text-xs px-5 py-3"
+              >
+                ➔ السابق
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="carehub-btn-primary text-xs font-bold px-6 py-3"
+              >
+                التالي: الموعد والموقع ➔
+              </button>
+            </div>
           </div>
+        )}
 
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-slate-700">رقم الواتساب *</label>
-            <input
-              required
-              className="nabd-input text-xs font-bold"
-              placeholder="010XXXXXXXX"
-              value={form.whatsapp}
-              onChange={e => setForm({ ...form, whatsapp: e.target.value })}
-            />
+        {/* STEP 3: SCHEDULE & GPS LOCATION */}
+        {step === 3 && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <h3 className="font-extrabold text-base text-[#041C36] border-b border-slate-100 pb-3 flex items-center gap-2 font-['Cairo']">
+              <MapPin size={18} className="text-[#E39019]" /> 3. الموعد والموقع الجغرافي (GPS)
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">تاريخ الزيارة *</label>
+                <input
+                  type="date"
+                  required
+                  className="nabd-input text-xs font-bold"
+                  value={form.date}
+                  onChange={e => setForm({ ...form, date: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-slate-700">وقت الزيارة المفضّل *</label>
+                <select
+                  className="nabd-input text-xs font-bold"
+                  value={form.time}
+                  onChange={e => setForm({ ...form, time: e.target.value })}
+                >
+                  {TIME_SLOTS.map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="font-bold text-slate-700">المنطقة / المركز بمحافظة دمياط *</label>
+                <select
+                  className="nabd-input text-xs font-bold"
+                  value={form.area}
+                  onChange={e => setForm({ ...form, area: e.target.value })}
+                >
+                  {DAMIETTA_AREAS.map(a => (
+                    <option key={a.name} value={a.name}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="font-bold text-slate-700">العنوان التفصيلي (الشارع والعمارة والرقم)</label>
+                <input
+                  className="nabd-input text-xs"
+                  placeholder="مثال: شارع الجلاء - عمارة الأمل - الدور 2..."
+                  value={form.addressDetail}
+                  onChange={e => setForm({ ...form, addressDetail: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="font-bold text-slate-700">علامة مميزة بالقرب من العنوان</label>
+                <input
+                  className="nabd-input text-xs"
+                  placeholder="بجوار المسجد الكبير، صيدلية..."
+                  value={form.landmark}
+                  onChange={e => setForm({ ...form, landmark: e.target.value })}
+                />
+              </div>
+
+              {/* GPS Geolocation Section */}
+              <div className="flex flex-col gap-3 sm:col-span-2 p-4 bg-[#EBF3FA] rounded-2xl border border-slate-200 mt-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Navigation size={18} className="text-[#143B67]" />
+                    <span className="font-extrabold text-slate-900">تحديد موقعك الجغرافي لتوجيه التمريض (GPS)</span>
+                  </div>
+                  {form.lat && (
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">
+                      ✔ تم التحديد
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  تحديد الموقع بالـ GPS يضمن وصول الممرض إلى منزلك فوراً وبأسرع مسار عبر Google Maps.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGetLocation}
+                    disabled={isLocating}
+                    className="carehub-btn-primary text-xs font-bold py-2.5 px-4 flex-1 shadow-sm flex items-center justify-center gap-2"
+                  >
+                    {isLocating ? (
+                      <>
+                        <Loader2 size={16} className="carehub-spin" /> جاري تحديد الإحداثيات...
+                      </>
+                    ) : (
+                      <>
+                        <MapPin size={16} /> 📍 تحديد موقعي الحالي تلقائياً (GPS)
+                      </>
+                    )}
+                  </button>
+
+                  {form.googleMapsUrl && (
+                    <a
+                      href={form.googleMapsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="bg-white text-[#143B67] border border-slate-300 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5"
+                    >
+                      <ExternalLink size={14} /> معاينة على الخريطة
+                    </a>
+                  )}
+                </div>
+
+                {locationStatus && (
+                  <p className={`text-[11px] font-bold ${form.lat ? "text-emerald-700" : "text-slate-600"}`}>
+                    {locationStatus}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-between pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="carehub-btn-ghost text-xs px-5 py-3"
+              >
+                ➔ السابق
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(4)}
+                className="carehub-btn-primary text-xs font-bold px-6 py-3"
+              >
+                التالي: مراجعة الطلب ➔
+              </button>
+            </div>
           </div>
+        )}
 
-          <div className="flex flex-col gap-1 sm:col-span-2">
-            <label className="font-bold text-slate-700">الخدمة المطلوبة *</label>
-            <select
-              className="nabd-input text-xs font-bold"
-              value={form.serviceId}
-              onChange={e => setForm({ ...form, serviceId: e.target.value })}
-            >
-              {FLAT_SERVICES.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
+        {/* STEP 4: REVIEW & CONFIRM */}
+        {step === 4 && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <h3 className="font-extrabold text-base text-[#041C36] border-b border-slate-100 pb-3 flex items-center gap-2 font-['Cairo']">
+              <FileCheck size={18} className="text-[#E39019]" /> 4. مراجعة وتأكيد طلب الحجز
+            </h3>
+
+            <div className="bg-[#EBF3FA] rounded-2xl p-4 border border-slate-200 text-xs flex flex-col gap-2.5 text-slate-800">
+              <p className="font-extrabold text-sm text-[#041C36]">ملخص تفاصيل الحجز:</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <p>👤 الاسم: <strong>{form.name}</strong></p>
+                <p>📞 رقم الهاتف: <strong>{form.phone}</strong></p>
+                <p>📱 الواتساب: <strong>{form.sameWhatsapp ? form.phone : form.whatsapp}</strong></p>
+                <p>🩺 الخدمة: <strong>{selectedService.name}</strong></p>
+                <p className="col-span-2">📌 سبب الزيارة الرئيسي: <strong>{form.visitReason === "أخرى" ? form.otherReason : form.visitReason}</strong></p>
+                <p>📍 المنطقة: <strong>{form.area}</strong></p>
+                <p>🏢 العنوان: <strong>{form.addressDetail || "غير محدد"}</strong></p>
+                <p>📅 الموعد: <strong>{form.date} الساعة {form.time}</strong></p>
+                {form.chronicDiseases.length > 0 && (
+                  <p className="col-span-2">🏥 الأمراض المزمنة: {form.chronicDiseases.join("، ")}</p>
+                )}
+                {form.lat && (
+                  <p className="col-span-2 text-emerald-800 font-bold">📍 إحداثيات الموقع (GPS): {form.lat.toFixed(4)}, {form.lng.toFixed(4)}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-between pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="carehub-btn-ghost text-xs px-5 py-3"
+              >
+                ➔ السابق
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="carehub-btn-orange text-xs font-extrabold px-8 py-3.5 shadow-lg flex items-center justify-center gap-2 min-h-[46px] w-full sm:w-auto"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={18} className="carehub-spin" /> جاري حفظ الحجز بـ Google Sheets وإرسال الواتساب...
+                  </>
+                ) : (
+                  <>
+                    <CalendarPlus size={18} /> تأكيد الحجز وإرسال الطلب 🚀
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-slate-700">المنطقة / المركز بدمياط *</label>
-            <select
-              className="nabd-input text-xs font-bold"
-              value={form.area}
-              onChange={e => setForm({ ...form, area: e.target.value })}
-            >
-              {DAMIETTA_AREAS.map(a => (
-                <option key={a.name} value={a.name}>{a.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-slate-700">علامة مميزة بالقرب من المنزل</label>
-            <input
-              className="nabd-input text-xs"
-              placeholder="بجوار المسجد الكبير، صيدلية..."
-              value={form.landmark}
-              onChange={e => setForm({ ...form, landmark: e.target.value })}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1 sm:col-span-2">
-            <label className="font-bold text-slate-700">العنوان التفصيلي (الشارع والعمارة)</label>
-            <input
-              className="nabd-input text-xs"
-              placeholder="شارع الجلاء - عمارة الأمل - الدور 2..."
-              value={form.addressDetail}
-              onChange={e => setForm({ ...form, addressDetail: e.target.value })}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-slate-700">تاريخ الزيارة *</label>
-            <input
-              type="date"
-              required
-              className="nabd-input text-xs font-bold"
-              value={form.date}
-              onChange={e => setForm({ ...form, date: e.target.value })}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-slate-700">وقت الزيارة المفضّل *</label>
-            <select
-              className="nabd-input text-xs font-bold"
-              value={form.time}
-              onChange={e => setForm({ ...form, time: e.target.value })}
-            >
-              {TIME_SLOTS.map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1 sm:col-span-2">
-            <label className="font-bold text-slate-700">ملاحظات أو توصيات خاصة</label>
-            <textarea
-              className="nabd-input text-xs resize-none h-16"
-              placeholder="أي تفاصيل طبية أو تعليمات إضافية للممرض..."
-              value={form.notes}
-              onChange={e => setForm({ ...form, notes: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end pt-4 border-t border-slate-100">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="carehub-btn-orange text-xs font-extrabold px-8 py-3.5 shadow-lg flex items-center justify-center gap-2 min-h-[46px] w-full sm:w-auto"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 size={18} className="carehub-spin" /> جاري حفظ الحجز بـ Google Sheets وإرسال الواتساب...
-              </>
-            ) : (
-              <>
-                <CalendarPlus size={18} /> تأكيد الحجز وإرسال الطلب 🚀
-              </>
-            )}
-          </button>
-        </div>
+        )}
       </form>
     </div>
   );
