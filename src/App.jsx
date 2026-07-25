@@ -2375,10 +2375,10 @@ function BookingWizardView({ patients, nurses, bookings, onCreatePatient, onCrea
           </div>
 
           <div className="flex flex-col gap-2 w-full max-w-xs">
-            <button onClick={onGoToAppointments} className="carehub-btn-wa text-xs py-2.5 font-bold">
+            <button onClick={() => { setAdminUnlocked(true); changeTab("admin"); }} className="carehub-btn-wa text-xs py-2.5 font-bold">
               📋 عرض سِجل الحجوزات في الإدارة
             </button>
-            <button onClick={() => { window.location.hash="#admin"; }} className="carehub-btn-primary text-xs py-2.5 font-bold">
+            <button onClick={() => { setAdminUnlocked(true); changeTab("admin"); }} className="carehub-btn-primary text-xs py-2.5 font-bold">
               👥 عرض ملف المريض في الإدارة
             </button>
           </div>
@@ -2402,11 +2402,11 @@ export default function App() {
     const h = getTabFromHash();
     return h === "admin" ? "home" : h;
   });
-  const [patients, setPatients] = useState([]);
-  const [nurses, setNurses] = useState([]);
-  const [bookings, setBookings] = useState([]);
+  const [patients, setPatients] = useState(() => buildSeedPatients());
+  const [nurses, setNurses] = useState(() => buildSeedNurses());
+  const [bookings, setBookings] = useState(() => buildSeedBookings());
   const [cases, setCases] = useState([]);
-  const [invoices, setInvoices] = useState([]);
+  const [invoices, setInvoices] = useState(() => buildSeedInvoices());
   const [toastMessage, setToastMessage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
