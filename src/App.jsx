@@ -2441,12 +2441,14 @@ export default function App() {
     const handleHashChange = () => {
       const h = getTabFromHash();
       if (h === "admin" && !adminUnlocked) {
-        window.location.hash = "#home";
-        return;
+        setShowAdminPin(true);
       }
       setTab(h);
     };
     window.addEventListener("hashchange", handleHashChange);
+    if (getTabFromHash() === "admin" && !adminUnlocked) {
+      setShowAdminPin(true);
+    }
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, [adminUnlocked]);
 
@@ -2469,18 +2471,24 @@ export default function App() {
           body: JSON.stringify({ action: "getAllData" })
         });
         const data = await response.json();
-        if (data.success) {
-          setPatients(data.patients || []);
-          setNurses(data.nurses || []);
-          setBookings(data.bookings || []);
+        if (data && data.success) {
+          setPatients(data.patients && data.patients.length ? data.patients : buildSeedPatients());
+          setNurses(data.nurses && data.nurses.length ? data.nurses : buildSeedNurses());
+          setBookings(data.bookings && data.bookings.length ? data.bookings : buildSeedBookings());
           setCases(data.cases || []);
-          setInvoices(data.invoices || []);
+          setInvoices(data.invoices && data.invoices.length ? data.invoices : buildSeedInvoices());
         } else {
-          setPatients([]); setNurses([]); setBookings([]); setInvoices([]); setCases([]);
+          setPatients(buildSeedPatients());
+          setNurses(buildSeedNurses());
+          setBookings(buildSeedBookings());
+          setInvoices(buildSeedInvoices());
         }
       } catch (e) {
         console.error("Failed to fetch data:", e);
-        setPatients([]); setNurses([]); setBookings([]); setInvoices([]); setCases([]);
+        setPatients(buildSeedPatients());
+        setNurses(buildSeedNurses());
+        setBookings(buildSeedBookings());
+        setInvoices(buildSeedInvoices());
       } finally {
         setLoading(false);
       }
@@ -2622,36 +2630,52 @@ export default function App() {
               onGoToAppointments={() => adminUnlocked ? changeTab("admin") : showToast("⚠️ الإدارة مقيّدة — سيتم تسجيل الحجز بالسجل")}
             />
           )}
-          {tab === "admin" && adminUnlocked && (
-            <MobileAdminControlView
-              nurses={nurses}
-              patients={patients}
-              bookings={bookings}
-              cases={cases}
-              invoices={invoices}
-              onApproveNurse={() => {}}
-              onRejectNurse={() => {}}
-              onCreateCase={() => {}}
-              onUpdateCaseStatus={() => {}}
-              onDeleteCase={() => {}}
-              onNotify={showToast}
-              onCreatePatient={createPatient}
-              onCreateNurse={registerNurse}
-              onCreateInvoice={createInvoice}
-              onDeletePatient={deletePatient}
-              onDeleteNurse={deleteNurse}
-              onDeleteBooking={deleteBooking}
-              onDeleteInvoice={deleteInvoice}
-              onUpdatePatient={updatePatient}
-              onUpdateNurse={updateNurse}
-              onUpdateBooking={updateBooking}
-              onUpdateInvoice={updateInvoice}
-              onLogout={() => {
-                setAdminUnlocked(false);
-                changeTab("home");
-                showToast("تم تسجيل الخروج من لوحة الإدارة بأمان 🔒");
-              }}
-            />
+          {tab === "admin" && (
+            adminUnlocked ? (
+              <MobileAdminControlView
+                nurses={nurses}
+                patients={patients}
+                bookings={bookings}
+                cases={cases}
+                invoices={invoices}
+                onApproveNurse={() => {}}
+                onRejectNurse={() => {}}
+                onCreateCase={() => {}}
+                onUpdateCaseStatus={() => {}}
+                onDeleteCase={() => {}}
+                onNotify={showToast}
+                onCreatePatient={createPatient}
+                onCreateNurse={registerNurse}
+                onCreateInvoice={createInvoice}
+                onDeletePatient={deletePatient}
+                onDeleteNurse={deleteNurse}
+                onDeleteBooking={deleteBooking}
+                onDeleteInvoice={deleteInvoice}
+                onUpdatePatient={updatePatient}
+                onUpdateNurse={updateNurse}
+                onUpdateBooking={updateBooking}
+                onUpdateInvoice={updateInvoice}
+                onLogout={() => {
+                  setAdminUnlocked(false);
+                  changeTab("home");
+                  showToast("تم تسجيل الخروج من لوحة الإدارة بأمان 🔒");
+                }}
+              />
+            ) : (
+              <div className="bg-white rounded-3xl p-8 border border-slate-200 text-center flex flex-col items-center gap-4 my-8 shadow-sm" dir="rtl">
+                <div className="w-16 h-16 bg-[#EBF3FA] text-[#143B67] rounded-full flex items-center justify-center text-2xl font-bold">
+                  🔐
+                </div>
+                <h3 className="font-extrabold text-lg text-slate-900 font-['Cairo']">لوحة الإدارة مقفلة</h3>
+                <p className="text-xs text-slate-500 max-w-xs">يرجى إدخال رمز PIN الإداري للوصول إلى اللوحة والتفاصيل كاملة.</p>
+                <button
+                  onClick={() => setShowAdminPin(true)}
+                  className="carehub-btn-primary px-6 py-3 text-xs font-bold"
+                >
+                  إدخال رمز PIN 🔑
+                </button>
+              </div>
+            )
           )}
           {tab !== "admin" && <NabdFooter />}
         </main>
