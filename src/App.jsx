@@ -2162,6 +2162,7 @@ function BookingWizardView({ patients, nurses, bookings, onCreatePatient, onCrea
     
     try {
       const payload = {
+        type: "patient",
         patientId: "",
         name: wiz.patientName,
         phone: wiz.phone,
@@ -2553,16 +2554,9 @@ export default function App() {
     await apiMutate("update", "invoices", id, patch);
   };
 
-  const createBookings = async (newOnes) => {
-    setBookings((prev) => [...prev, ...newOnes]);
-    for (const b of newOnes) {
-      await apiMutate("create", "bookings", b.id, b);
-    }
-  };
-  const createInvoice = async (inv) => {
-    setInvoices((prev) => [inv, ...prev]);
-    await apiMutate("create", "invoices", inv.id, inv);
-  };
+  const createPatientLocal = (data) => setPatients((prev) => [data, ...prev]);
+  const createBookingsLocal = (newOnes) => setBookings((prev) => [...prev, ...newOnes]);
+  const createInvoiceLocal = (inv) => setInvoices((prev) => [inv, ...prev]);
 
   const goToAdminNurses = () => {
     if (adminUnlocked) {
@@ -2627,9 +2621,9 @@ export default function App() {
               patients={patients}
               nurses={nurses}
               bookings={bookings}
-              onCreatePatient={createPatient}
-              onCreateBookings={createBookings}
-              onCreateInvoice={createInvoice}
+              onCreatePatient={createPatientLocal}
+              onCreateBookings={createBookingsLocal}
+              onCreateInvoice={createInvoiceLocal}
               onNotify={showToast}
               initialServiceId={selectedServiceId}
               onGoToAppointments={() => adminUnlocked ? changeTab("admin") : showToast("⚠️ الإدارة مقيّدة — سيتم تسجيل الحجز بالسجل")}
