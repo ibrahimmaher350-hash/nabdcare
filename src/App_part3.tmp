@@ -1,0 +1,279 @@
+
+/* ============================== MAIN APP COMPONENT ============================== */
+
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbyOwjexAqUzIoiy19_pnNx1Ps4zQgNOqhy51rv4jpHeECQjbMBQOhuV5yrX3w23hlKVTg/exec";
+
+export default function App() {
+  const getTabFromHash = () => {
+    const hash = window.location.hash.replace("#", "").trim();
+    return ["home", "booking", "join", "admin"].includes(hash) ? hash : "home";
+  };
+
+  const [tab, setTab] = useState(() => {
+    const h = getTabFromHash();
+    return h === "admin" ? "home" : h;
+  });
+  const [patients, setPatients] = useState(() => buildSeedPatients());
+  const [nurses, setNurses] = useState(() => buildSeedNurses());
+  const [bookings, setBookings] = useState(() => buildSeedBookings());
+  const [cases, setCases] = useState([]);
+  const [invoices, setInvoices] = useState(() => buildSeedInvoices());
+  const [toastMessage, setToastMessage] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedServiceId, setSelectedServiceId] = useState(null);
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [showAdminPin, setShowAdminPin] = useState(false);
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const h = getTabFromHash();
+      if (h === "admin" && !adminUnlocked) {
+        setShowAdminPin(true);
+      }
+      setTab(h);
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    if (getTabFromHash() === "admin" && !adminUnlocked) {
+      setShowAdminPin(true);
+    }
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [adminUnlocked]);
+
+  const changeTab = (newTab) => {
+    if (newTab === "admin" && !adminUnlocked) {
+      setShowAdminPin(true);
+      return;
+    }
+    setTab(newTab);
+    window.location.hash = `#${newTab}`;
+  };
+
+  // 1. Load data from Google Sheets API
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await fetch(GOOGLE_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "getAllData" })
+        });
+        const data = await response.json();
+        if (data && data.success) {
+          setPatients(data.patients && data.patients.length ? data.patients : buildSeedPatients());
+          setNurses(data.nurses && data.nurses.length ? data.nurses : buildSeedNurses());
+          setBookings(data.bookings && data.bookings.length ? data.bookings : buildSeedBookings());
+          setCases(data.cases || []);
+          setInvoices(data.invoices && data.invoices.length ? data.invoices : buildSeedInvoices());
+        } else {
+          setPatients(buildSeedPatients());
+          setNurses(buildSeedNurses());
+          setBookings(buildSeedBookings());
+          setInvoices(buildSeedInvoices());
+        }
+      } catch (e) {
+        console.error("Failed to fetch data:", e);
+        setPatients(buildSeedPatients());
+        setNurses(buildSeedNurses());
+        setBookings(buildSeedBookings());
+        setInvoices(buildSeedInvoices());
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // Helper for API mutations
+  const apiMutate = async (action, table, id, payloadData) => {
+    try {
+      const response = await fetch(GOOGLE_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action, table, id, data: payloadData })
+      });
+      const data = await response.json();
+      return data.success;
+    } catch (e) {
+      console.error("Mutation failed", e);
+      return false;
+    }
+  };
+  const createPatient = async (data) => {
+    setPatients((prev) => [data, ...prev]);
+    await apiMutate("create", "patients", data.id, data);
+  };
+
+  const registerNurse = async (data) => {
+    const n = data.id ? data : { id: uid("nur"), photo: `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=143B67&color=fff&size=128&bold=true`, coord: areaCoord(data.area), ...data };
+    setNurses((prev) => [...prev, n]);
+    await apiMutate("create", "nurses", n.id, n);
+  };
+
+  const deletePatient = async (id) => {
+    setPatients((prev) => prev.filter((p) => p.id !== id));
+    await apiMutate("delete", "patients", id);
+  };
+  const deleteNurse = async (id) => {
+    setNurses((prev) => prev.filter((n) => n.id !== id));
+    await apiMutate("delete", "nurses", id);
+  };
+  const deleteBooking = async (id) => {
+    setBookings((prev) => prev.filter((b) => b.id !== id));
+    await apiMutate("delete", "bookings", id);
+  };
+  const deleteInvoice = async (id) => {
+    setInvoices((prev) => prev.filter((inv) => inv.id !== id));
+    await apiMutate("delete", "invoices", id);
+  };
+  
+  const updatePatient = async (id, patch) => {
+    setPatients((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p));
+    await apiMutate("update", "patients", id, patch);
+  };
+  const updateNurse = async (id, patch) => {
+    setNurses((prev) => prev.map((n) => n.id === id ? { ...n, ...patch } : n));
+    await apiMutate("update", "nurses", id, patch);
+  };
+  const updateBooking = async (id, patch) => {
+    setBookings((prev) => prev.map((b) => b.id === id ? { ...b, ...patch } : b));
+    await apiMutate("update", "bookings", id, patch);
+  };
+  const updateInvoice = async (id, patch) => {
+    setInvoices((prev) => prev.map((inv) => inv.id === id ? { ...inv, ...patch } : inv));
+    await apiMutate("update", "invoices", id, patch);
+  };
+
+  const createPatientLocal = (data) => setPatients((prev) => [data, ...prev]);
+  const createBookingsLocal = (newOnes) => setBookings((prev) => [...prev, ...newOnes]);
+  const createInvoiceLocal = (inv) => setInvoices((prev) => [inv, ...prev]);
+
+  const goToAdminNurses = () => {
+    if (adminUnlocked) {
+      setTab("admin");
+      window.location.hash = "#admin";
+    }
+  };
+
+  const handleGoBooking = (emergency = false, serviceId = null) => {
+    if (serviceId) setSelectedServiceId(serviceId);
+    changeTab("booking");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#041C36] text-white" dir="rtl">
+        <div className="flex flex-col items-center gap-3">
+          <HeartPulse size={40} className="carehub-spin text-[#E39019]" />
+          <p className="text-sm font-bold">جاري تحميل منصة نبض المؤمّنة للتمريض المنزلي...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <NabdErrorBoundary>
+      <div className="nabd-app min-h-screen pb-24" dir="rtl">
+        <StyleBlock />
+        <NabdHeader
+          onEmergencyClick={() => handleGoBooking(true)}
+          currentTab={tab}
+          onChangeTab={changeTab}
+          onNotify={showToast}
+          onGoBooking={handleGoBooking}
+        />
+
+        {toastMessage && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9998] bg-[#041C36] text-white text-sm font-bold px-5 py-3 rounded-2xl shadow-2xl border border-[#E39019] flex items-center gap-2 max-w-[90vw] text-center">
+            <CheckCircle2 size={18} className="text-[#10B981] flex-shrink-0" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+
+        {showAdminPin && (
+          <AdminPinModal
+            onSuccess={() => {
+              setAdminUnlocked(true);
+              setShowAdminPin(false);
+              setTab("admin");
+              window.location.hash = "#admin";
+              showToast("✅ مرحباً بك في لوحة تحكم الإدارة يا " + BRAND.manager);
+            }}
+            onCancel={() => setShowAdminPin(false)}
+          />
+        )}
+
+        <main className="max-w-6xl mx-auto px-4 py-5">
+          {tab === "home" && <HomeHeroView onGoBooking={handleGoBooking} onGoJoin={() => changeTab("join")} onNotify={showToast} />}
+          {tab === "join" && <NurseOnboardingView onRegisterNurse={registerNurse} onGoHome={() => changeTab("home")} onGoToAdminNurses={adminUnlocked ? goToAdminNurses : null} onNotify={showToast} />}
+          {tab === "booking" && (
+            <BookingWizardView
+              patients={patients}
+              nurses={nurses}
+              bookings={bookings}
+              onCreatePatient={createPatientLocal}
+              onCreateBookings={createBookingsLocal}
+              onCreateInvoice={createInvoiceLocal}
+              onNotify={showToast}
+              initialServiceId={selectedServiceId}
+              onGoToAppointments={() => adminUnlocked ? changeTab("admin") : showToast("⚠️ الإدارة مقيّدة — سيتم تسجيل الحجز بالسجل")}
+            />
+          )}
+          {tab === "admin" && (
+            adminUnlocked ? (
+              <MobileAdminControlView
+                nurses={nurses}
+                patients={patients}
+                bookings={bookings}
+                cases={cases}
+                invoices={invoices}
+                onApproveNurse={() => {}}
+                onRejectNurse={() => {}}
+                onCreateCase={() => {}}
+                onUpdateCaseStatus={() => {}}
+                onDeleteCase={() => {}}
+                onNotify={showToast}
+                onCreatePatient={createPatient}
+                onCreateNurse={registerNurse}
+                onCreateInvoice={createInvoice}
+                onDeletePatient={deletePatient}
+                onDeleteNurse={deleteNurse}
+                onDeleteBooking={deleteBooking}
+                onDeleteInvoice={deleteInvoice}
+                onUpdatePatient={updatePatient}
+                onUpdateNurse={updateNurse}
+                onUpdateBooking={updateBooking}
+                onUpdateInvoice={updateInvoice}
+                onLogout={() => {
+                  setAdminUnlocked(false);
+                  changeTab("home");
+                  showToast("تم تسجيل الخروج من لوحة الإدارة بأمان 🔒");
+                }}
+              />
+            ) : (
+              <div className="bg-white rounded-3xl p-8 border border-slate-200 text-center flex flex-col items-center gap-4 my-8 shadow-sm" dir="rtl">
+                <div className="w-16 h-16 bg-[#EBF3FA] text-[#143B67] rounded-full flex items-center justify-center text-2xl font-bold">
+                  🔐
+                </div>
+                <h3 className="font-extrabold text-lg text-slate-900 font-['Cairo']">لوحة الإدارة مقفلة</h3>
+                <p className="text-xs text-slate-500 max-w-xs">يرجى إدخال رمز PIN الإداري للوصول إلى اللوحة والتفاصيل كاملة.</p>
+                <button
+                  onClick={() => setShowAdminPin(true)}
+                  className="carehub-btn-primary px-6 py-3 text-xs font-bold"
+                >
+                  إدخال رمز PIN 🔑
+                </button>
+              </div>
+            )
+          )}
+          {tab !== "admin" && <NabdFooter />}
+        </main>
+
+        <NabdBottomNav currentTab={tab} onChangeTab={changeTab} adminUnlocked={adminUnlocked} />
+      </div>
+    </NabdErrorBoundary>
+  );
+}
