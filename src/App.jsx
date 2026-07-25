@@ -720,61 +720,68 @@ function NabdHeader({ onEmergencyClick, currentTab, onChangeTab, onNotify, onGoB
 
   return (
     <header className="bg-[#041C36] text-white sticky top-0 z-50 border-b border-[#143B67] shadow-xl">
-      <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="max-w-6xl mx-auto px-3 py-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {currentTab !== "home" && (
             <button 
               onClick={() => onChangeTab("home")}
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all shadow-sm flex items-center justify-center min-w-[40px] min-h-[40px]"
+              className="p-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all shadow-sm flex items-center justify-center min-w-[36px] min-h-[36px]"
               title="العودة للرئيسية"
             >
-              <ArrowRight size={20} />
+              <ArrowRight size={18} />
             </button>
           )}
-          <div className="flex items-center gap-3 cursor-pointer select-none" onClick={handleLogoTap}>
+          <div className="flex items-center gap-2 cursor-pointer select-none min-w-0" onClick={handleLogoTap}>
             <img
               src={BRAND.logoUrl}
               alt="شعار نبض للتمريض المنزلي"
-              className="w-12 h-12 rounded-2xl object-cover border-2 border-[#E39019] shadow-md"
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl object-cover border-2 border-[#E39019] shadow-md flex-shrink-0"
               loading="lazy"
               decoding="async"
             />
-            <div>
-            <div className="flex items-center gap-2">
-              <span className="font-black text-xl tracking-tight text-white font-['Cairo']">نبض للتمريض المنزلي</span>
-            </div>
-          </div>
+            <span className="font-black text-sm sm:text-lg tracking-tight text-white font-['Cairo'] truncate">
+              نبض التمريض المنزلي
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
             onClick={() => onChangeTab("admin")}
-            className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 min-h-[40px] transition-all ${
+            className={`px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 min-h-[36px] transition-all ${
               currentTab === "admin"
                 ? "bg-[#E39019] text-[#041C36] font-extrabold shadow-md"
                 : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
             }`}
+            title="الإدارة"
           >
-            <UserCog size={14} /> الإدارة
+            <UserCog size={15} />
+            <span className="hidden sm:inline">الإدارة</span>
           </button>
+
           <button
             onClick={() => onGoBooking(false)}
-            className="carehub-btn-orange text-xs py-2 px-3.5 flex items-center gap-1.5 shadow-md font-bold hidden sm:flex"
+            className="carehub-btn-orange text-xs py-1.5 px-3 flex items-center gap-1 shadow-md font-bold hidden md:flex min-h-[36px]"
           >
             <CalendarPlus size={15} /> احجز الآن
           </button>
+
           <a
             href={`tel:${BRAND.phone}`}
-            className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 border border-white/20 min-h-[40px]"
+            className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 border border-white/20 min-h-[36px]"
+            title="اتصل بنا"
           >
-            <PhoneCall size={14} /> اتصل بنا
+            <PhoneCall size={14} />
+            <span className="hidden sm:inline">اتصل بنا</span>
           </a>
+
           <button
             onClick={handleShareSite}
-            className="bg-[#10B981] hover:bg-emerald-600 text-white px-3 py-2 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md cursor-pointer min-h-[40px]"
+            className="bg-[#10B981] hover:bg-emerald-600 text-white px-2.5 py-1.5 rounded-xl font-black text-xs flex items-center gap-1 shadow-md cursor-pointer min-h-[36px]"
+            title="مشاركة"
           >
-            <Share2 size={14} /> مشاركة
+            <Share2 size={14} />
+            <span className="hidden sm:inline">مشاركة</span>
           </button>
         </div>
       </div>
@@ -1529,11 +1536,11 @@ function MobileAdminControlView({ nurses, patients, bookings, cases, invoices, o
   };
 
   const stats = useMemo(() => {
-    const totalRev = (patients || []).reduce((acc, p) => acc + (Number(p.price) || 0), 0) + 4350;
+    const totalRev = (patients || []).filter(p => p && typeof p === "object").reduce((acc, p) => acc + (Number(p.price) || 0), 0) + 4350;
     return {
       todayVisits: 24,
       ongoingVisits: 6,
-      availableNurses: (nurses || []).filter((n) => n.status === "approved").length + 15,
+      availableNurses: (nurses || []).filter((n) => n && n.status === "approved").length + 15,
       emergencyCases: 2,
       todayRevenue: `${totalRev.toLocaleString()} جنيه`,
       satisfactionRate: "98%",
@@ -1541,21 +1548,24 @@ function MobileAdminControlView({ nurses, patients, bookings, cases, invoices, o
   }, [nurses, patients]);
 
   const filteredBookings = useMemo(() => {
-    if (!searchQuery.trim()) return bookings || [];
+    const valid = (bookings || []).filter(b => b && typeof b === "object");
+    if (!searchQuery.trim()) return valid;
     const q = searchQuery.toLowerCase();
-    return (bookings || []).filter((b) => (b.patientName || "").toLowerCase().includes(q) || (b.area || "").toLowerCase().includes(q));
+    return valid.filter((b) => (b.patientName || "").toLowerCase().includes(q) || (b.area || "").toLowerCase().includes(q));
   }, [bookings, searchQuery]);
 
   const filteredNurses = useMemo(() => {
-    if (!searchQuery.trim()) return nurses || [];
+    const valid = (nurses || []).filter(n => n && typeof n === "object");
+    if (!searchQuery.trim()) return valid;
     const q = searchQuery.toLowerCase();
-    return (nurses || []).filter((n) => (n.name || "").toLowerCase().includes(q) || (n.area || "").toLowerCase().includes(q));
+    return valid.filter((n) => (n.name || "").toLowerCase().includes(q) || (n.area || "").toLowerCase().includes(q));
   }, [nurses, searchQuery]);
 
   const filteredPatients = useMemo(() => {
-    if (!searchQuery.trim()) return patients || [];
+    const valid = (patients || []).filter(p => p && typeof p === "object");
+    if (!searchQuery.trim()) return valid;
     const q = searchQuery.toLowerCase();
-    return (patients || []).filter((p) => (p.name || "").toLowerCase().includes(q) || (p.code || "").toLowerCase().includes(q) || (p.phone || "").includes(q));
+    return valid.filter((p) => (p.name || "").toLowerCase().includes(q) || (p.code || "").toLowerCase().includes(q) || (p.phone || "").includes(q));
   }, [patients, searchQuery]);
 
   const copyPatientsForGoogleSheets = () => {
