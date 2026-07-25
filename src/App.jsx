@@ -746,18 +746,6 @@ function NabdHeader({ onEmergencyClick, currentTab, onChangeTab, onNotify, onGoB
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <button
-            onClick={() => onChangeTab("admin")}
-            className={`px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 min-h-[36px] transition-all ${
-              currentTab === "admin"
-                ? "bg-[#E39019] text-[#041C36] font-extrabold shadow-md"
-                : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
-            }`}
-            title="الإدارة"
-          >
-            <UserCog size={15} />
-            <span className="hidden sm:inline">الإدارة</span>
-          </button>
 
           <button
             onClick={() => onGoBooking(false)}
@@ -1138,7 +1126,7 @@ function NabdBottomNav({ currentTab, onChangeTab, patients, onNotify }) {
             <div className={`p-1 rounded-xl transition-all duration-200 ${currentTab === "join" ? "bg-[#EBF3FA] scale-110 shadow-sm" : ""}`}>
               <UserCheck size={18} className={currentTab === "join" ? "text-[#143B67]" : "text-slate-400"} />
             </div>
-            <span className="text-[9px] tracking-tight whitespace-nowrap">انضمام ممرض</span>
+            <span className="text-[9px] tracking-tight whitespace-nowrap">انضم لفريقنا</span>
           </button>
 
           {/* 5. Patient Reviews */}
@@ -1152,19 +1140,6 @@ function NabdBottomNav({ currentTab, onChangeTab, patients, onNotify }) {
               <Star size={18} className={currentTab === "reviews" ? "text-[#143B67]" : "text-slate-400"} />
             </div>
             <span className="text-[9px] tracking-tight whitespace-nowrap">آراء المرضى</span>
-          </button>
-
-          {/* 6. Admin */}
-          <button
-            onClick={() => handleTabClick("admin")}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all duration-200 active:scale-95 touch-manipulation ${
-              currentTab === "admin" ? "text-[#143B67] font-black" : "text-slate-400 hover:text-slate-600 font-medium"
-            }`}
-          >
-            <div className={`p-1 rounded-xl transition-all duration-200 ${currentTab === "admin" ? "bg-[#EBF3FA] scale-110 shadow-sm" : ""}`}>
-              <UserCog size={18} className={currentTab === "admin" ? "text-[#143B67]" : "text-slate-400"} />
-            </div>
-            <span className="text-[9px] tracking-tight whitespace-nowrap">الإدارة</span>
           </button>
 
         </div>
@@ -1809,14 +1784,6 @@ function NurseOnboardingView({ onRegisterNurse, onGoHome, onGoToAdminNurses, onN
               <p className="text-xs sm:text-sm text-slate-300 mt-1">انضم إلى نخبة التمريض المنزلي بمحافظة دمياط واحصل على زيارات منظمة بدعم 24/7</p>
             </div>
           </div>
-          {onGoToAdminNurses && (
-            <button
-              onClick={onGoToAdminNurses}
-              className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-2xl border border-white/20 flex items-center gap-1.5 transition-all self-end sm:self-center"
-            >
-              <UserCog size={15} /> عرض سجل الممرضين بالإدارة
-            </button>
-          )}
         </div>
 
         {/* Step Indicator */}
@@ -4098,7 +4065,7 @@ const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbyOwjexAqUzIoiy1
 export default function App() {
   const getTabFromHash = () => {
     const hash = window.location.hash.replace("#", "").trim();
-    return ["home", "services", "booking", "join", "reviews", "admin"].includes(hash) ? hash : "home";
+    return ["home", "services", "booking", "join", "reviews"].includes(hash) ? hash : "home";
   };
 
   const [tab, setTab] = useState(() => getTabFromHash());
@@ -4294,7 +4261,7 @@ export default function App() {
           {tab === "home" && <HomeHeroView onGoBooking={handleGoBooking} onGoJoin={() => changeTab("join")} onNotify={showToast} />}
           {tab === "services" && <ServicesView onGoBooking={handleGoBooking} onNotify={showToast} />}
           {tab === "reviews" && <PatientReviewsView onNotify={showToast} />}
-          {tab === "join" && <NurseOnboardingView onRegisterNurse={registerNurse} onGoHome={() => changeTab("home")} onGoToAdminNurses={adminUnlocked ? goToAdminNurses : null} onNotify={showToast} />}
+          {tab === "join" && <NurseOnboardingView onRegisterNurse={registerNurse} onGoHome={() => changeTab("home")} onNotify={showToast} />}
           {tab === "booking" && (
             <BookingWizardView
               patients={patients}
@@ -4305,40 +4272,10 @@ export default function App() {
               onCreateInvoice={createInvoiceLocal}
               onNotify={showToast}
               initialServiceId={selectedServiceId}
-              onGoToAppointments={() => changeTab("admin")}
+              onGoToAppointments={() => changeTab("home")}
             />
           )}
-          {tab === "admin" && (
-            <MobileAdminControlView
-              nurses={nurses}
-              patients={patients}
-              bookings={bookings}
-              cases={cases}
-              invoices={invoices}
-              onApproveNurse={() => {}}
-              onRejectNurse={() => {}}
-              onCreateCase={() => {}}
-              onUpdateCaseStatus={() => {}}
-              onDeleteCase={() => {}}
-              onNotify={showToast}
-              onCreatePatient={createPatient}
-              onCreateNurse={registerNurse}
-              onCreateInvoice={createInvoice}
-              onDeletePatient={deletePatient}
-              onDeleteNurse={deleteNurse}
-              onDeleteBooking={deleteBooking}
-              onDeleteInvoice={deleteInvoice}
-              onUpdatePatient={updatePatient}
-              onUpdateNurse={updateNurse}
-              onUpdateBooking={updateBooking}
-              onUpdateInvoice={updateInvoice}
-              onLogout={() => {
-                changeTab("home");
-                showToast("تم الانتقال إلى الصفحة الرئيسية 🏠");
-              }}
-            />
-          )}
-          {tab !== "admin" && <NabdFooter onGoBooking={handleGoBooking} />}
+          <NabdFooter onGoBooking={handleGoBooking} />
         </main>
 
         <NabdBottomNav currentTab={tab} onChangeTab={changeTab} patients={patients} onNotify={showToast} />
