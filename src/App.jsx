@@ -2106,6 +2106,389 @@ function NurseOnboardingView({ onRegisterNurse, onGoHome, onGoToAdminNurses, onN
   );
 }
 
+/* ============================== BOOKING WIZARD VIEW (احجز الآن) ============================== */
+function BookingWizardView({
+  patients,
+  nurses,
+  bookings,
+  onCreatePatient,
+  onCreateBookings,
+  onCreateInvoice,
+  onNotify,
+  initialServiceId,
+  onGoToAppointments
+}) {
+  const [submittedBooking, setSubmittedBooking] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [showPatientRecordModal, setShowPatientRecordModal] = useState(false);
+
+  // Form state
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    whatsapp: "",
+    area: DAMIETTA_AREAS[0].name,
+    addressDetail: "",
+    landmark: "",
+    serviceId: initialServiceId || FLAT_SERVICES[0].id,
+    date: todayStr(),
+    time: "10:00",
+    notes: "",
+    guardianName: "",
+    guardianPhone: "",
+  });
+
+  const selectedService = FLAT_SERVICES.find(s => s.id === form.serviceId) || FLAT_SERVICES[0];
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (!form.name.trim() || form.name.trim().length < 2) {
+      if (onNotify) onNotify("❌ يرجى إدخال اسم المريض بالكامل");
+      return;
+    }
+    if (!form.phone.trim() || form.phone.trim().length < 10) {
+      if (onNotify) onNotify("❌ يرجى إدخال رقم هاتف صحيح");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // 1. Generate Patient Code & PIN
+      const patientCode = generatePatientCode();
+      const patientPin = generatePatientPin();
+      const bookingId = `BK-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      const newBookingObj = {
+        id: bookingId,
+        patientCode: patientCode,
+        patientPin: patientPin,
+        patientName: form.name.trim(),
+        phone: form.phone.trim(),
+        whatsapp: (form.whatsapp || form.phone).trim(),
+        serviceId: form.serviceId,
+        serviceName: selectedService.name,
+        area: form.area,
+        addressDetail: form.addressDetail.trim() || "غير محدد",
+        landmark: form.landmark.trim() || "—",
+        date: form.date,
+        time: form.time,
+        notes: form.notes.trim() || "لا يوجد",
+        status: "confirmed", // تم استلام الطلب
+        nurseName: "ممرض/ إبراهيم ماهر",
+        createdAt: Date.now(),
+      };
+
+      // 2. Save Booking to Google Sheets API & Local State
+      if (onCreateBookings) {
+        await onCreateBookings([newBookingObj]);
+      }
+
+      // Also save Patient record
+      if (onCreatePatient) {
+        onCreatePatient({
+          id: uid("pat"),
+          code: patientCode,
+          pin: patientPin,
+          name: form.name.trim(),
+          phone: form.phone.trim(),
+          whatsapp: (form.whatsapp || form.phone).trim(),
+          area: form.area,
+          addressDetail: form.addressDetail.trim(),
+          healthStatus: "متابعة منزلية",
+          requestReason: selectedService.name,
+          chronicSummary: ["متابعة زيارة منزلية"],
+          allergies: [],
+          medications: "حسب التقييم بالمنزل",
+          balance: "0 ج.م",
+          createdAt: Date.now(),
+        });
+      }
+
+      // 3. Send WhatsApp Alert to Admin
+      sendWhatsAppNotification(
+        "📅 حجز زيارة منزلية جديدة",
+        `المريض: ${newBookingObj.patientName} | الكود: ${patientCode} | الخدمة: ${selectedService.name} | المنطقة: ${form.area} | الموعد: ${form.date} الساعة ${form.time}`
+      );
+
+      // 4. Send WhatsApp Confirmation to Patient
+      const patientMsg = `مرحباً ${newBookingObj.patientName} 👋
+تم استلام طلب حجزك لـ (${selectedService.name}) بنجاح.
+
+🆔 كود المريض (Patient ID): ${patientCode}
+🔑 كلمة المرور (PIN): ${patientPin}
+📅 الموعد: ${form.date} الساعة ${form.time}
+📍 العنوان: ${form.area} - ${newBookingObj.addressDetail}
+📌 حالة الطلب: تم استلام الطلب (مؤكد) ⏳
+
+سيتم التواصل معك فوراً لتأكيد وصول طاقم التمريض بالموعد المحجوز. شكراً لثقتكم بنبض! 🩺`;
+
+      window.open(`https://wa.me/20${newBookingObj.whatsapp}?text=${encodeURIComponent(patientMsg)}`, "_blank");
+
+      setSubmittedBooking(newBookingObj);
+      setIsSubmitting(false);
+
+      if (onNotify) onNotify("🎉 تم تأكيد الحجز وإرسال الطلب ومزامنة Google Sheets بنجاح!");
+    } catch (err) {
+      console.error("Booking submit error:", err);
+      setIsSubmitting(false);
+      setErrorMessage("حدث خطأ أثناء حفظ الحجز في Google Sheets. يرجى التأكد من اتصال الإنترنت والمحاولة مجدداً.");
+      if (onNotify) onNotify("❌ تعذر حفظ الحجز في Google Sheets");
+    }
+  };
+
+  // SUCCESS VIEW
+  if (submittedBooking) {
+    return (
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl flex flex-col items-center text-center gap-6 my-4 animate-in fade-in zoom-in duration-300" dir="rtl">
+        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl shadow-inner">
+          🎉
+        </div>
+
+        <div>
+          <h2 className="font-extrabold text-2xl sm:text-3xl text-[#041C36] font-['Cairo']">
+            تم تأكيد الحجز وإرسال الطلب بنجاح!
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-2 max-w-md font-bold">
+            مرحباً يا <span className="text-[#143B67] font-black">{submittedBooking.patientName}</span>، تم تسجيل زيارتك بالمنظومة وجاري توجيه التمريض للموعد.
+          </p>
+        </div>
+
+        {/* Detailed Booking Summary */}
+        <div className="w-full max-w-lg bg-[#EBF3FA] rounded-2xl p-5 border border-slate-200 text-right flex flex-col gap-3.5 text-xs">
+          <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+            <span className="font-bold text-slate-600">رقم المريض (Patient ID):</span>
+            <span className="font-mono font-black text-sm text-[#143B67] bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
+              {submittedBooking.patientCode}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+            <span className="font-bold text-slate-600">كلمة المرور (PIN):</span>
+            <span className="font-mono font-black text-sm text-[#E39019] bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
+              {submittedBooking.patientPin}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <p>👤 الاسم: <strong>{submittedBooking.patientName}</strong></p>
+            <p>📞 رقم الهاتف: <strong>{submittedBooking.phone}</strong></p>
+            <p>📱 رقم الواتساب: <strong>{submittedBooking.whatsapp}</strong></p>
+            <p>🩺 الخدمة المطلوبة: <strong>{submittedBooking.serviceName}</strong></p>
+            <p>📍 المنطقة: <strong>{submittedBooking.area}</strong></p>
+            <p>🏢 العنوان: <strong>{submittedBooking.addressDetail}</strong></p>
+            <p>📅 التاريخ: <strong>{submittedBooking.date}</strong></p>
+            <p>⏰ الوقت: <strong>{submittedBooking.time}</strong></p>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-slate-200/80 pt-3">
+            <span className="font-bold text-slate-600">حالة الطلب:</span>
+            <span className="font-black text-xs px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1">
+              <CheckCircle size={13} /> تم استلام الطلب
+            </span>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-lg mt-1">
+          <button
+            onClick={() => setShowPatientRecordModal(true)}
+            className="carehub-btn-primary py-3.5 text-xs font-extrabold flex-1 shadow-lg flex items-center justify-center gap-2"
+          >
+            <ClipboardList size={16} /> 📋 ملفي الطبي والمساعد الذكي
+          </button>
+          <button
+            onClick={() => {
+              setSubmittedBooking(null);
+            }}
+            className="carehub-btn-ghost py-3.5 text-xs font-bold flex-1"
+          >
+            حجز زيارة جديدة ➕
+          </button>
+        </div>
+
+        {/* Patient Record Modal Popup */}
+        {showPatientRecordModal && (
+          <PatientMedicalRecordModal
+            patients={patients}
+            onClose={() => setShowPatientRecordModal(false)}
+            onNotify={onNotify}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // WIZARD FORM
+  return (
+    <div className="flex flex-col gap-6 my-4" dir="rtl">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#041C36] via-[#0d2d55] to-[#143B67] text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-64 h-64 bg-[#E39019] opacity-10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-14 h-14 rounded-2xl bg-[#E39019] text-[#041C36] flex items-center justify-center font-black shadow-lg">
+            <CalendarPlus size={30} />
+          </div>
+          <div>
+            <h1 className="font-extrabold text-xl sm:text-2xl font-['Cairo'] text-white">حجز زيارة تمريضية منزلية 🩺</h1>
+            <p className="text-xs sm:text-sm text-slate-300 mt-1">احجز ممرض متخصص للزيارة المنزلية بدمياط مع مزامنة فورية في Google Sheets</p>
+          </div>
+        </div>
+      </div>
+
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-xs font-bold flex items-center gap-2">
+          <AlertCircle size={18} className="flex-shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Main Form */}
+      <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-md flex flex-col gap-6">
+        <h3 className="font-extrabold text-base text-[#041C36] border-b border-slate-100 pb-3 flex items-center gap-2 font-['Cairo']">
+          <User size={18} className="text-[#E39019]" /> بيانات المريض وحجز الزيارة
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div className="flex flex-col gap-1 sm:col-span-2">
+            <label className="font-bold text-slate-700">اسم المريض بالكامل *</label>
+            <input
+              required
+              className="nabd-input text-xs font-bold"
+              placeholder="مثال: محمد أحمد السيد"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-slate-700">رقم الهاتف الأساسي *</label>
+            <input
+              required
+              className="nabd-input text-xs font-bold"
+              placeholder="010XXXXXXXX"
+              value={form.phone}
+              onChange={e => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-slate-700">رقم الواتساب *</label>
+            <input
+              required
+              className="nabd-input text-xs font-bold"
+              placeholder="010XXXXXXXX"
+              value={form.whatsapp}
+              onChange={e => setForm({ ...form, whatsapp: e.target.value })}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1 sm:col-span-2">
+            <label className="font-bold text-slate-700">الخدمة المطلوبة *</label>
+            <select
+              className="nabd-input text-xs font-bold"
+              value={form.serviceId}
+              onChange={e => setForm({ ...form, serviceId: e.target.value })}
+            >
+              {FLAT_SERVICES.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-slate-700">المنطقة / المركز بدمياط *</label>
+            <select
+              className="nabd-input text-xs font-bold"
+              value={form.area}
+              onChange={e => setForm({ ...form, area: e.target.value })}
+            >
+              {DAMIETTA_AREAS.map(a => (
+                <option key={a.name} value={a.name}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-slate-700">علامة مميزة بالقرب من المنزل</label>
+            <input
+              className="nabd-input text-xs"
+              placeholder="بجوار المسجد الكبير، صيدلية..."
+              value={form.landmark}
+              onChange={e => setForm({ ...form, landmark: e.target.value })}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1 sm:col-span-2">
+            <label className="font-bold text-slate-700">العنوان التفصيلي (الشارع والعمارة)</label>
+            <input
+              className="nabd-input text-xs"
+              placeholder="شارع الجلاء - عمارة الأمل - الدور 2..."
+              value={form.addressDetail}
+              onChange={e => setForm({ ...form, addressDetail: e.target.value })}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-slate-700">تاريخ الزيارة *</label>
+            <input
+              type="date"
+              required
+              className="nabd-input text-xs font-bold"
+              value={form.date}
+              onChange={e => setForm({ ...form, date: e.target.value })}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-slate-700">وقت الزيارة المفضّل *</label>
+            <select
+              className="nabd-input text-xs font-bold"
+              value={form.time}
+              onChange={e => setForm({ ...form, time: e.target.value })}
+            >
+              {TIME_SLOTS.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1 sm:col-span-2">
+            <label className="font-bold text-slate-700">ملاحظات أو توصيات خاصة</label>
+            <textarea
+              className="nabd-input text-xs resize-none h-16"
+              placeholder="أي تفاصيل طبية أو تعليمات إضافية للممرض..."
+              value={form.notes}
+              onChange={e => setForm({ ...form, notes: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-4 border-t border-slate-100">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="carehub-btn-orange text-xs font-extrabold px-8 py-3.5 shadow-lg flex items-center justify-center gap-2 min-h-[46px] w-full sm:w-auto"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 size={18} className="carehub-spin" /> جاري حفظ الحجز بـ Google Sheets وإرسال الواتساب...
+              </>
+            ) : (
+              <>
+                <CalendarPlus size={18} /> تأكيد الحجز وإرسال الطلب 🚀
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 /* ============================== MODAL: ADD PATIENT FORM ============================== */
 
 function AddPatientModal({ onClose, onSave, onNotify }) {
